@@ -13,7 +13,7 @@
 #define ERR_LISTEN -3
 #define ERR_MEMORY -4
 
-typdef struct 
+typedef struct 
 {
 	int socket_fd;
 	IPv4Endpoint endpoint;
@@ -59,7 +59,7 @@ static void end_process_with_error(int error_code)
 	else if (error_code == ERR_MEMORY)
 		perror("ERR: No se ha podido reservar memoria para un servidor web.");
 	else
-		perror("ERR: Ha ocurrido un error desconocido al abrir un servidor web.")
+		perror("ERR: Ha ocurrido un error desconocido al abrir un servidor web.");
 	exit(error_code);
 }
 
