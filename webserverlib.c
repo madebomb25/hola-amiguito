@@ -12,7 +12,7 @@
 #define ERR_BIND_SOCKET -2
 #define ERR_LISTEN -3
 #define ERR_MEMORY -4
-
+// struct
 typdef struct 
 {
 	int socket_fd;
