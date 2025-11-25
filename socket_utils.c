@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stddef.h>
+#include "socket_utils.h"
 
 typedef struct sockaddr_in IPv4Endpoint;
 
