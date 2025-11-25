@@ -44,6 +44,9 @@ WebServer *start_webserver(int port)
 		free(server);
 		end_process_with_error(ERR_MEMORY);
 	}
+	// Asignación de valores a los campos del struct 
+	server->endpoint = endpoint;
+	server->socket_fd = socket_fd;
 	
     return server;
 }
@@ -71,4 +74,27 @@ static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint)
 static int start_listening(int socket_fd)
 {
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
+}
+
+/* TO DO: Esta función debe ir dentro de start_webserver? */
+static void accept_requests(WebServer *server) 
+{
+	int server_fd = server->socket_fd;
+
+	while(1) {
+		struct sockaddr_in client_addr;
+		socklen_t client_addr_len = sizeof(client_addr);
+
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr);
+
+		if (client_fd >= 0) {
+			handle_request(client_fd);
+		}
+		else {
+			/*Esto se podría implementar mediante end_process_with_error 
+			pero en caso de que una petición falle no queremos abortar la ejecución
+			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
+			printf("ERR: No se ha podido aceptar una petición.");
+		}
+	}
 }
