@@ -91,50 +91,20 @@ char *load_file(const char *filepath, size_t *out_size, time_t *out_mtime) {
 CacheEntry* get_free_or_lru_entry(CacheEntry *cache) {
     // 1º buscar libre
     int idx_free = 0;
+    int idx_lru = 0;
     int trobat = 0;
     for (int i = 0; i < MAX_CACHE_ENTRIES && !trobat; i++) {
         if (!cache[i].in_use) {
             idx_free = i;
             trobat = 1;
         }
+        if (cache[i].last_access < cache[idx_lru].last_access) idx_lru = i;
     }
     if (trobat) return &cache[idx_free];
-
-    // si no hay libre, buscar LRU (último acceso más antiguo)
-    int idx_lru = 0;
-    for (int i = 1; i < MAX_CACHE_ENTRIES; i++) {
-        if (cache[i].last_access < cache[idx_lru].last_access) {
-            idx_lru = i;
-        }
+    else{
+        free(cache[idx_lru].data);
+        return &cache[idx_lru];
     }
-
-    // liberar memoria anterior
-    free(cache[idx_lru].data);
-    return &cache[idx_lru];
-}
-
-CacheEntry* get_free_or_lru_entry(CacheEntry *cache) {
-    // 1º buscar libre
-    int idx_free = -1;
-    for (int i = 0; i < MAX_CACHE_ENTRIES; i++) {
-        if (!cache[i].in_use) {
-            idx_free = i;
-            break;
-        }
-    }
-    if (idx_free != -1) return &cache[idx_free];
-
-    // si no hay libre, buscar LRU (último acceso más antiguo)
-    int idx_lru = 0;
-    for (int i = 1; i < MAX_CACHE_ENTRIES; i++) {
-        if (cache[i].last_access < cache[idx_lru].last_access) {
-            idx_lru = i;
-        }
-    }
-
-    // liberar memoria anterior
-    free(cache[idx_lru].data);
-    return &cache[idx_lru];
 }
 
 void store_in_cache(CacheEntry *cache, const char *path, const char *filepath,
