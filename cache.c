@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <sys/stat.h>
+#include "cache.h"
 
 
 
