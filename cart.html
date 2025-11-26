@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carret de Temps - ChronoCart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+    <header class="main-header">
+        <div class="logo-stack">
+            <a href="index.html" class="logo" aria-label="Torna a la portada">ChronoCart</a>
+            <span class="tagline">Panell del Carret</span>
+        </div>
+        <button onclick="goBack()" class="ghost">⬅ Tornar a la botiga</button>
+    </header>
+
+    <main class="cart-layout">
+        <section class="cart-panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Revisa el teu ritual</p>
+                    <h1>Carret de Temps</h1>
+                </div>
+                <button id="clearCart" class="ghost">Buidar carret</button>
+            </div>
+            <div id="cartList" class="cart-list" aria-live="polite"></div>
+            <div class="cart-summary">
+                <div>
+                    <span class="label">Total acumulat</span>
+                    <strong id="cartTotal">0h 0m</strong>
+                </div>
+                <div>
+                    <span class="label">Reliquies</span>
+                    <strong id="cartItems">0</strong>
+                </div>
+                <button id="checkoutButton" class="primary" type="button" disabled>Procedir al pagament</button>
+            </div>
+        </section>
+        <section class="checkout-panel">
+            <h2>Inicia el ritual de pagament</h2>
+            <p>Introdueix la teva targeta d'eteri, confirma la transferència d'hores i completa la compra.</p>
+            <ul class="perks">
+                <li>🔮 Conversió instantània de minuts</li>
+                <li>🪄 Verificació multi-plà</li>
+                <li>⚡ Retorn automàtic a la botiga</li>
+            </ul>
+            <div class="payment-card">
+                <p>La passarel·la s'obrirà quan tinguis comanda.</p>
+                <button class="primary" id="checkoutButtonGhost" type="button" disabled>Obrir passarel·la</button>
+            </div>
+        </section>
+    </main>
+
+    <div id="paymentModal" class="modal" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" id="closeModal" aria-label="Tanca el pagament">×</button>
+            <h2>Pagament amb targeta temporal</h2>
+            <form id="paymentForm">
+                <label>
+                    Nom complet del portador
+                    <input type="text" id="cardHolder" required placeholder="Jace Beleren">
+                </label>
+                <label>
+                    Número de targeta
+                    <input type="text" id="cardNumber" inputmode="numeric" maxlength="19" required placeholder="4242 4242 4242 4242">
+                </label>
+                <div class="inline-fields">
+                    <label>
+                        Caducitat
+                        <input type="text" id="cardExpiry" inputmode="numeric" maxlength="5" required placeholder="08/28">
+                    </label>
+                    <label>
+                        CVV
+                        <input type="password" id="cardCvv" inputmode="numeric" maxlength="4" required placeholder="123">
+                    </label>
+                </div>
+                <label>
+                    Correu de confirmació
+                    <input type="email" id="cardEmail" required placeholder="tu@planeswalker.com">
+                </label>
+                <label>
+                    Clau de reserva temporal
+                    <input type="text" id="timeCode" required placeholder="CRONO-2025">
+                </label>
+                <button type="submit" class="primary">Completar pagament</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="successPopup" class="success-popup" aria-live="assertive" aria-hidden="true">
+        <div class="popup-card">
+            <h3>Comra con exito!</h3>
+            <p>Has completat el ritual. Estem redirigint-te a la sala principal.</p>
+            <button id="returnHome" class="primary">Tornar a ChronoCart</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 ChronoCart · Compra-ho tot amb Temps!</p>
+    </footer>
+
+    <script src="cart.js"></script>
+</body>
+</html>
+

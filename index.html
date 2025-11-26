@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoCart - Compra amb Temps</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+    <header class="main-header">
+        <div class="logo-stack">
+            <a href="index.html" class="logo" aria-label="Torna a la portada">ChronoCart</a>
+            <span class="tagline">Botiga arcana on pagues amb hores</span>
+        </div>
+        <div class="header-actions">
+            <input type="text" placeholder="Cerca prodigis temporals..." id="searchBar" aria-label="Cercador de productes">
+            <button class="cart-button" onclick="goToCart()">
+                ⏳ Carret de Temps
+                <span class="cart-pill"><span id="totalTime">0h 0m</span> · <span id="cartCount">0</span> objectes</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-text">
+                <p class="eyebrow">Nova col·lecció · Edició limitada</p>
+                <h1>Compra amb minuts, equipa't com un Planeswalker.</h1>
+                <p>Selecciona artefactes únics, sacrifica temps vital i completa el ritual de pagament per rebre els teus tresors.
+                </p>
+                <div class="hero-actions">
+                    <button class="primary" onclick="document.getElementById('productGrid').scrollIntoView({behavior: 'smooth'});">Explora l'arsenal</button>
+                    <button class="ghost" onclick="goToCart()">Veure carret</button>
+                </div>
+            </div>
+            <div class="hero-card">
+                <h2>Oferta del Nexus</h2>
+                <p>Completa un recado temporal i desbloqueja un descompte de 15 minuts en el teu pròxim intercanvi.</p>
+                <div class="hero-timer">
+                    <span>Temps restant</span>
+                    <strong id="dailyQuest">03h 21m</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="status-bar">
+            <div>
+                <span class="label">Saldo vital</span>
+                <strong id="statusTime">0h 0m</strong>
+            </div>
+            <div>
+                <span class="label">Reliquies al carret</span>
+                <strong id="statusItems">0 objectes</strong>
+            </div>
+            <div>
+                <span class="label">Mode</span>
+                <strong>Compra amb temps</strong>
+            </div>
+        </section>
+
+        <section class="catalog">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Selecció destacada</p>
+                    <h2>Arsenal crono-místic</h2>
+                </div>
+                <div class="filters">
+                    <select id="rarityFilter" aria-label="Filtra per rarea">
+                        <option value="all">Totes les rareses</option>
+                        <option value="common">Comú</option>
+                        <option value="uncommon">Poc comú</option>
+                        <option value="rare">Rar</option>
+                        <option value="mythic">Mític</option>
+                    </select>
+                    <select id="sortSelect" aria-label="Ordena per temps">
+                        <option value="default">Ordena: destacats</option>
+                        <option value="asc">Menys temps</option>
+                        <option value="desc">Més temps</option>
+                    </select>
+                </div>
+            </div>
+            <div class="products" id="productGrid" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+
+    <footer>
+        <p>© 2025 ChronoCart · Rituals temporals certificats per la Confraria d'Hechicers.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
