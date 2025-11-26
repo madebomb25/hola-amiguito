@@ -13,6 +13,9 @@
 #define ERR_LISTEN -3
 #define ERR_MEMORY -4
 
+#define BUFFER_SIZE 4096
+#define MAX_PATH_LENGTH 1024
+
 typedef struct 
 {
 	int socket_fd;
@@ -74,6 +77,31 @@ static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint)
 static int start_listening(int socket_fd)
 {
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
+}
+
+
+static void handle_request(int client_fd) {
+	char request_buffer[BUFFER_SIZE]; 
+
+	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
+	char *request_line;
+	char *method;
+	if (bytes_received < 0) {
+		perror("ERR: No se ha podido manejar una petición HTTP.\n");
+	}
+
+	else if (bytes_received == 0) {
+		perror("El cliente terminó la conexión.\n");
+	}
+
+	else {
+		request_buffer[bytes_received] = '\0';
+
+		// Trucamos la primera línea de la petición
+		char *request_line = strtok(request_buffer, "\r\n");
+
+	close(client_fd);
+	}
 }
 
 /* TO DO: Esta función debe ir dentro de start_webserver? */
