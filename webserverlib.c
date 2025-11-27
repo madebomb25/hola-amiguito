@@ -17,17 +17,17 @@
 
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LENGTH 1024
-#define WEB_ROOT "www"
 
 typedef struct 
 {
 	int socket_fd;
 	IPv4Endpoint endpoint;
+	char *WEB_ROOT_PATH;
 	int max_clients;
 	
 } WebServer;
 
-WebServer *start_webserver(int port)
+WebServer *start_webserver(char* WEB_ROOT_PATH, int port)
 {	
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_fd < 0) 
@@ -52,7 +52,7 @@ WebServer *start_webserver(int port)
 
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
-	
+	server->WEB_ROOT_PATH = WEB_ROOT_PATH;
     return server;
 }
 
@@ -111,97 +111,6 @@ static const char *get_mime_type(const char *path) {
 		return DEFAULT_RESPONSE;
 }
 
-void send_files(int client_fd, char *path) {
-	char local_path[MAX_PATH_LENGTH + 5]; 
-	FILE *file = NULL; 
-	long file_size = 0;
-	char header_buffer[512]; 
-
-	// Si la request envía '/' respondemos con index.html si no
-	// procesamos el path especificado por el navegador 
-	if (strcmp(path, "/") == 0) {
-		snprintf(local_path, sizeof(local_path), "%s/index.html", WEB_ROOT);
-	}
-	else {
-		snprintf(local_path, sizeof(local_path), "%s%s", WEB_ROOT, path);
-	}
-
-	file = fopen(local_path, "rb");
-
-	if (file == NULL) {
-		// Mandamos página 404
-	}
-
-	fseek(file, 0, SEEK_END);
-	file_size = ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	// Lidiamos con la petición que espera recibir 
-	// el navegador 
-	const char *mime_type = get_mime_type(local_path);
-
-	int header_len = snprintf(header_buffer, sizeof(header_buffer), 
-		"HTTP/1.0 200 OK\r\n"
-		"Content-Type %s\r\n"
-		"Connect-Length: %ld\r\n"
-		"Connection: close\r\n"
-		"\r\n",
-		mime_type, file_size);
-
-	// Envío de cabeceras al cliente
-	write(client_fd, header_buffer, header_len);
-
-	// Enviar contenido del archivo 
-	char file_buffer[1024];
-	int bytes_read;
-
-	while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
-		if (write(client_fd, file_buffer, bytes_read) < 0) {
-			perror("Error al enviar contenido del archivo");
-			break;
-		}
-	}
-
-	fclose(file);
-}
-static void handle_request(int client_fd) {
-	char request_buffer[BUFFER_SIZE]; 
-
-	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
-	char *method;
-	if (bytes_received < 0) {
-		perror("ERR: No se ha podido manejar una petición HTTP.\n");
-	}
-
-	else if (bytes_received == 0) {
-		printf("El cliente terminó la conexión.\n");
-	}
-
-	else {
-		request_buffer[bytes_received] = '\0';
-		char *path;
-		// Trucamos la primera línea de la petición
-		char *request_line = strtok(request_buffer, "\r\n");
-		
-		if (request_line == NULL) {
-			// mandar página 404 
-		}
-
-		else {
-			method = strtok(request_line, " ");
-			path = strtok(NULL, " ");
-		}
-
-		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
-			send_files(client_fd, path);
-		}
-		else {
-			// mandar página 404
-		}
-	}
-	close(client_fd);
-}
-
 void send_404_response(int client_fd) {
 	// 1. Cuerpo HTML estático para el usuario
     const char *html_body = 
@@ -247,9 +156,7 @@ static void accept_requests(WebServer *server)
 		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr);
 
 		if (client_fd >= 0)
-		{
-			handle_request(client_fd);
-		}
+			handle_request(server, client_fd);
 		else
 		{
 			/*Esto se podría implementar mediante end_process_with_error 
@@ -260,7 +167,99 @@ static void accept_requests(WebServer *server)
 	}
 }
 
-static void end_server(WebServer *server)
+static void handle_request(WebServer *server, int client_fd) {
+	char request_buffer[BUFFER_SIZE]; 
+
+	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
+	char *method;
+	if (bytes_received < 0) {
+		perror("ERR: No se ha podido manejar una petición HTTP.\n");
+	}
+
+	else if (bytes_received == 0) {
+		printf("El cliente terminó la conexión.\n");
+	}
+
+	else {
+		request_buffer[bytes_received] = '\0';
+		char *requested_path;
+		// Trucamos la primera línea de la petición
+		char *request_line = strtok(request_buffer, "\r\n");
+		
+		if (request_line == NULL) {
+			// mandar página 404 
+		}
+
+		else {
+			method = strtok(request_line, " ");
+			requested_path = strtok(NULL, " ");
+		}
+
+		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
+			send_files(client_fd, server->WEB_ROOT_PATH, requested_path);
+		}
+		else {
+			// mandar página 404
+		}
+	}
+	close(client_fd);
+}
+
+void send_files(int client_fd, char *WEB_ROOT_PATH, char* requested_path) {
+	char local_path[MAX_PATH_LENGTH + 5]; 
+	FILE *file = NULL; 
+	long file_size = 0;
+	char header_buffer[512]; 
+
+	// Si la request envía '/' respondemos con index.html si no
+	// procesamos el path especificado por el navegador 
+	if (strcmp(path, "/") == 0) {
+		snprintf(local_path, sizeof(local_path), "%s/index.html", WEB_ROOT_PATH);
+	}
+	else {
+		snprintf(local_path, sizeof(local_path), "%s%s", WEB_ROOT_PATH, requested_path);
+	}
+
+	file = fopen(local_path, "rb");
+
+	if (file == NULL) {
+		// Mandamos página 404
+	}
+
+	fseek(file, 0, SEEK_END);
+	file_size = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	// Lidiamos con la petición que espera recibir 
+	// el navegador 
+	const char *mime_type = get_mime_type(local_path);
+
+	int header_len = snprintf(header_buffer, sizeof(header_buffer), 
+		"HTTP/1.0 200 OK\r\n"
+		"Content-Type %s\r\n"
+		"Connect-Length: %ld\r\n"
+		"Connection: close\r\n"
+		"\r\n",
+		mime_type, file_size);
+
+	// Envío de cabeceras al cliente
+	write(client_fd, header_buffer, header_len);
+
+	// Enviar contenido del archivo 
+	char file_buffer[1024];
+	int bytes_read;
+
+	while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
+		if (write(client_fd, file_buffer, bytes_read) < 0) {
+			perror("Error al enviar contenido del archivo");
+			break;
+		}
+	}
+
+	fclose(file);
+}
+
+static void close_server(WebServer *server)
 {
 	close(server->socket_fd);
 	free(server);
