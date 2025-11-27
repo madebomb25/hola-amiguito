@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "webserverlib.h"
 #include "socket_utils.h"
 
 #define MAX_CLIENTS_IN_QUEUE 5
@@ -19,13 +20,13 @@
 #define MAX_PATH_LENGTH 1024
 #define WEB_ROOT "www"
 
-typedef struct 
-{
-	int socket_fd;
-	IPv4Endpoint endpoint;
-	int max_clients;
-	
-} WebServer;
+
+static void end_process_with_error(int error_code);
+static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
+static int start_listening(int socket_fd);
+static const char *get_mime_type(const char *path);
+static void handle_request(int client_fd);
+
 
 WebServer *start_webserver(int port)
 {	
@@ -87,7 +88,7 @@ void send_static_404_response(int client_fd) {
         "<p>El recurso solicitado no existe en este servidor.</p>"
         "</body></html>\r\n";
         
-    int body_len = strlen(html_body); 
+    size_t body_len = strlen(html_body); 
 
     char http_response[BUFFER_SIZE];
     
@@ -130,6 +131,44 @@ static const char *get_mime_type(const char *path) {
 		
 	else
 		return DEFAULT_RESPONSE;
+}
+
+static void handle_request(int client_fd) {
+	char request_buffer[BUFFER_SIZE]; 
+
+	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
+	char *method;
+	if (bytes_received < 0) {
+		perror("ERR: No se ha podido manejar una petición HTTP.\n");
+	}
+
+	else if (bytes_received == 0) {
+		printf("El cliente terminó la conexión.\n");
+	}
+
+	else {
+		request_buffer[bytes_received] = '\0';
+		char *path;
+		// Trucamos la primera línea de la petición
+		char *request_line = strtok(request_buffer, "\r\n");
+		
+		if (request_line == NULL) {
+			send_404_response(client_fd);
+		}
+
+		else {
+			method = strtok(request_line, " ");
+			path = strtok(NULL, " ");
+		}
+
+		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
+			send_files(client_fd, path, 200);
+		}
+		else {
+			send_404_response(client_fd);
+		}
+	}
+	close(client_fd);
 }
 
 void send_files(int client_fd, char *path, int status_code) {
@@ -196,49 +235,12 @@ void send_files(int client_fd, char *path, int status_code) {
 		fclose(file);
 	}
 }
-static void handle_request(int client_fd) {
-	char request_buffer[BUFFER_SIZE]; 
-
-	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
-	char *method;
-	if (bytes_received < 0) {
-		perror("ERR: No se ha podido manejar una petición HTTP.\n");
-	}
-
-	else if (bytes_received == 0) {
-		printf("El cliente terminó la conexión.\n");
-	}
-
-	else {
-		request_buffer[bytes_received] = '\0';
-		char *path;
-		// Trucamos la primera línea de la petición
-		char *request_line = strtok(request_buffer, "\r\n");
-		
-		if (request_line == NULL) {
-			send_404_response(client_fd);
-		}
-
-		else {
-			method = strtok(request_line, " ");
-			path = strtok(NULL, " ");
-		}
-
-		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
-			send_files(client_fd, path, 200);
-		}
-		else {
-			send_404_response(client_fd);
-		}
-	}
-	close(client_fd);
-}
 
 void send_404_response(int client_fd) {
 	send_files(client_fd, "/404.html", 404);
 }
 
-static void accept_requests(WebServer *server) 
+void accept_requests(WebServer *server) 
 {
 	int server_fd = server->socket_fd;
 
@@ -263,7 +265,7 @@ static void accept_requests(WebServer *server)
 	}
 }
 
-static void end_server(WebServer *server)
+void end_server(WebServer *server)
 {
 	close(server->socket_fd);
 	free(server);

@@ -9,7 +9,7 @@
 
 typedef struct sockaddr_in IPv4Endpoint;
 
-static IPv4Endpoint make_ipv4_endpoint(char* ip, int port)
+IPv4Endpoint make_ipv4_endpoint(char* ip, int port)
 {
     IPv4Endpoint endpoint = {0};
     endpoint.sin_family = AF_INET;
