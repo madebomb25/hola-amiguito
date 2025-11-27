@@ -111,7 +111,7 @@ static const char *get_mime_type(const char *path) {
 		return DEFAULT_RESPONSE;
 }
 
-void send_files(int client_fd, char *path) {
+void send_files(int client_fd, char *path, int status_code) {
 	char local_path[MAX_PATH_LENGTH + 5]; 
 	FILE *file = NULL; 
 	long file_size = 0;
@@ -129,36 +129,40 @@ void send_files(int client_fd, char *path) {
 	file = fopen(local_path, "rb");
 
 	if (file == NULL) {
-		// Mandamos página 404
+		send_404_response(client_fd);
 	}
 
-	fseek(file, 0, SEEK_END);
-	file_size = ftell(file);
-	fseek(file, 0, SEEK_SET);
+	else {
+		fseek(file, 0, SEEK_END);
+		file_size = ftell(file);
+		fseek(file, 0, SEEK_SET);
 
-	// Lidiamos con la petición que espera recibir 
-	// el navegador 
-	const char *mime_type = get_mime_type(local_path);
+		// Lidiamos con la petición que espera recibir 
+		// el navegador 
+		const char *mime_type = get_mime_type(local_path);
 
-	int header_len = snprintf(header_buffer, sizeof(header_buffer), 
-		"HTTP/1.0 200 OK\r\n"
-		"Content-Type %s\r\n"
-		"Connect-Length: %ld\r\n"
-		"Connection: close\r\n"
-		"\r\n",
-		mime_type, file_size);
+		const char *status_message = (status_code == 200) ? "200 OK" : "404 Not Found";
 
-	// Envío de cabeceras al cliente
-	write(client_fd, header_buffer, header_len);
+		int header_len = snprintf(header_buffer, sizeof(header_buffer), 
+			"HTTP/1.0 %s\r\n"
+			"Content-Type %s\r\n"
+			"Connect-Length: %ld\r\n"
+			"Connection: close\r\n"
+			"\r\n",
+			status_message, mime_type, file_size);
 
-	// Enviar contenido del archivo 
-	char file_buffer[1024];
-	int bytes_read;
+		// Envío de cabeceras al cliente
+		write(client_fd, header_buffer, header_len);
 
-	while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
-		if (write(client_fd, file_buffer, bytes_read) < 0) {
-			perror("Error al enviar contenido del archivo");
-			break;
+		// Enviar contenido del archivo 
+		char file_buffer[1024];
+		int bytes_read;
+
+		while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
+			if (write(client_fd, file_buffer, bytes_read) < 0) {
+				perror("Error al enviar contenido del archivo");
+				break;
+			}
 		}
 	}
 
@@ -184,7 +188,7 @@ static void handle_request(int client_fd) {
 		char *request_line = strtok(request_buffer, "\r\n");
 		
 		if (request_line == NULL) {
-			// mandar página 404 
+			send_404_response(client_fd);
 		}
 
 		else {
@@ -193,46 +197,17 @@ static void handle_request(int client_fd) {
 		}
 
 		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
-			send_files(client_fd, path);
+			send_files(client_fd, path, 200);
 		}
 		else {
-			// mandar página 404
+			send_404_response(client_fd);
 		}
 	}
 	close(client_fd);
 }
 
 void send_404_response(int client_fd) {
-	// 1. Cuerpo HTML estático para el usuario
-    const char *html_body = 
-        "<html><body>"
-        "<h1>404 Not Found</h1>"
-        "<p>El recurso solicitado no existe en este servidor SIOP.</p>"
-        "</body></html>\r\n";
-        
-    int body_len = strlen(html_body); 
-
-    char http_response[BUFFER_SIZE];
-    
-    // 2. Construcción de la Respuesta (Cabeceras + Cuerpo)
-    // NOTA: Es esencial incluir la línea de estado "HTTP/1.0 404 Not Found"
-    int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n" 
-        "Content-Type: text/html\r\n"
-        "Content-Length: %zu\r\n" // Usamos %zu ya que body_len es size_t
-        "Connection: close\r\n"
-        "\r\n" // Línea en blanco que separa cabeceras del cuerpo
-        "%s",
-        body_len, html_body);
-    
-    // 3. Envío
-    int bytes_sent = write(client_fd, http_response, response_len);
-    
-    if (bytes_sent < 0) {
-        perror("Error al enviar la respuesta 404");
-    } else {
-        printf("Respuesta 404 Not Found enviada.\n");
-    }
+	send_files(client_fd, "/404.html", 404);
 }
 
 static void accept_requests(WebServer *server) 
