@@ -45,13 +45,11 @@ WebServer *start_webserver(int port)
     
     WebServer *server = malloc(sizeof(WebServer));
     if (!server)
-    {
-		free(server);
 		end_process_with_error(ERR_MEMORY);
-	}
 
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
+	server->max_clients = MAX_CLIENTS_IN_QUEUE;
 	
     return server;
 }
@@ -82,9 +80,32 @@ static int start_listening(int socket_fd)
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
 }
 
+void send_static_404_response(int client_fd) {
+	const char *html_body = 
+        "<html><body>"
+        "<h1>404 Not Found</h1>"
+        "<p>El recurso solicitado no existe en este servidor.</p>"
+        "</body></html>\r\n";
+        
+    int body_len = strlen(html_body); 
+
+    char http_response[BUFFER_SIZE];
+    
+    int response_len = snprintf(http_response, BUFFER_SIZE,
+        "HTTP/1.0 404 Not Found\r\n" 
+        "Content-Type: text/html\r\n"
+        "Content-Length: %zu\r\n"
+        "Connection: close\r\n"
+        "\r\n" 
+        "%s",
+        body_len, html_body);
+    
+    write(client_fd, http_response, response_len); 
+}
+
 static const char *get_mime_type(const char *path) {
 	const char *file_extension = strrchr(path, '.');
-	const char DEFAULT_RESPONSE = "application/octet-stream";
+	const char *DEFAULT_RESPONSE = "application/octet-stream";
 
 	if (!file_extension) return DEFAULT_RESPONSE;
 
@@ -129,7 +150,15 @@ void send_files(int client_fd, char *path, int status_code) {
 	file = fopen(local_path, "rb");
 
 	if (file == NULL) {
-		send_404_response(client_fd);
+		// Si falla el puntero de lectura file no podremos
+		// renderizar un HTML "bonito" y en su lugar tendremos
+		// que mostrar un HTML estático a modo de fallback
+		if(status_code == 404) {
+			send_static_404_response(client_fd);
+		}
+		else {
+			send_404_response(client_fd);
+		}
 	}
 
 	else {
@@ -145,8 +174,8 @@ void send_files(int client_fd, char *path, int status_code) {
 
 		int header_len = snprintf(header_buffer, sizeof(header_buffer), 
 			"HTTP/1.0 %s\r\n"
-			"Content-Type %s\r\n"
-			"Connect-Length: %ld\r\n"
+			"Content-Type: %s\r\n"
+			"Content-Length: %ld\r\n"
 			"Connection: close\r\n"
 			"\r\n",
 			status_message, mime_type, file_size);
@@ -164,9 +193,8 @@ void send_files(int client_fd, char *path, int status_code) {
 				break;
 			}
 		}
+		fclose(file);
 	}
-
-	fclose(file);
 }
 static void handle_request(int client_fd) {
 	char request_buffer[BUFFER_SIZE]; 
@@ -219,7 +247,7 @@ static void accept_requests(WebServer *server)
 		IPv4Endpoint client_addr;
 		socklen_t client_addr_len = sizeof(client_addr);
 
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr);
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 
 		if (client_fd >= 0)
 		{
