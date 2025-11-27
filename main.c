@@ -1,13 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "webserverlib.h"
+#include <stdio.h>
 
-#define PORT 8080
+int main() {
+    int port = 8081;
+    
+    printf("Iniciando servidor web en http://127.0.0.1:%d/\n", port);
+    
+    
+    WebServer *server = start_webserver(port); 
 
-int main()
-{
-	WebServer *server = start_webserver(PORT);
-	
-	
-	
+    if (server != NULL) {
+        accept_requests(server); 
+        end_server(server);
+    } 
+    
+    return 0;
 }

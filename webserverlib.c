@@ -35,7 +35,7 @@ WebServer *start_webserver(int port)
 		end_process_with_error(ERR_OPEN_SOCKET);
     
     IPv4Endpoint endpoint;
-    endpoint = make_ipv4_endpoint("127.0.0.0", port);
+    endpoint = make_ipv4_endpoint("0.0.0.0", port);
     int is_binded = bind_socket_to_endpoint(socket_fd, &endpoint);
     if (!is_binded)
         end_process_with_error(ERR_BIND_SOCKET);
@@ -43,6 +43,7 @@ WebServer *start_webserver(int port)
     int is_listening = start_listening(socket_fd);
     if (!is_listening)
         end_process_with_error(ERR_LISTEN);
+	printf("Servidor escuchando\n");
     
     WebServer *server = malloc(sizeof(WebServer));
     if (!server)
@@ -51,6 +52,8 @@ WebServer *start_webserver(int port)
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
 	server->max_clients = MAX_CLIENTS_IN_QUEUE;
+
+	printf("Servidor inicializado\n");
 	
     return server;
 }
