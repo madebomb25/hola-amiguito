@@ -18,7 +18,6 @@
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LENGTH 1024
 #define WEB_ROOT "www"
-#define MAX_PATH_LENGTH 1024
 
 typedef struct 
 {
@@ -50,44 +49,11 @@ WebServer *start_webserver(int port)
 		free(server);
 		end_process_with_error(ERR_MEMORY);
 	}
-	// Asignación de valores a los campos del struct 
+
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
 	
     return server;
-}
-
-void send_404_response(int client_fd) {
-	// 1. Cuerpo HTML estático para el usuario
-    const char *html_body = 
-        "<html><body>"
-        "<h1>404 Not Found</h1>"
-        "<p>El recurso solicitado no existe en este servidor SIOP.</p>"
-        "</body></html>\r\n";
-        
-    int body_len = strlen(html_body); 
-
-    char http_response[BUFFER_SIZE];
-    
-    // 2. Construcción de la Respuesta (Cabeceras + Cuerpo)
-    // NOTA: Es esencial incluir la línea de estado "HTTP/1.0 404 Not Found"
-    int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n" 
-        "Content-Type: text/html\r\n"
-        "Content-Length: %zu\r\n" // Usamos %zu ya que body_len es size_t
-        "Connection: close\r\n"
-        "\r\n" // Línea en blanco que separa cabeceras del cuerpo
-        "%s",
-        body_len, html_body);
-    
-    // 3. Envío
-    int bytes_sent = write(client_fd, http_response, response_len);
-    
-    if (bytes_sent < 0) {
-        perror("Error al enviar la respuesta 404");
-    } else {
-        printf("Respuesta 404 Not Found enviada.\n");
-    }
 }
 
 static void end_process_with_error(int error_code)
@@ -105,6 +71,7 @@ static void end_process_with_error(int error_code)
 	exit(error_code);
 }
 
+
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint)
 {
     return bind(socket_fd, (struct sockaddr *)endpoint, sizeof(*endpoint)) == 0;
@@ -117,18 +84,26 @@ static int start_listening(int socket_fd)
 
 static const char *get_mime_type(const char *path) {
 	const char *ext = strrchr(path, '.');
+	const char DEFAULT_RESPONSE = "application/octet-stream";
 
-	if (!ext) return "application/octet-stream";
+	if (!ext) return DEFAULT_RESPONSE;
 
-	if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0) return "text/html";
-    if (strcmp(ext, ".css") == 0) return "text/css";
-    if (strcmp(ext, ".js") == 0) return "application/javascript";
-    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0) return "image/jpeg";
-    if (strcmp(ext, ".png") == 0) return "image/png";
-    if (strcmp(ext, ".gif") == 0) return "image/gif";
-    if (strcmp(ext, ".txt") == 0) return "text/plain";
+	if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)
+		return "text/html";
+    if (strcmp(ext, ".css") == 0)
+		return "text/css";
+    if (strcmp(ext, ".js") == 0)
+		return "application/javascript";
+    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0)
+		return "image/jpeg";
+    if (strcmp(ext, ".png") == 0)
+		return "image/png";
+    if (strcmp(ext, ".gif") == 0)
+		return "image/gif";
+    if (strcmp(ext, ".txt") == 0)
+		return "text/plain";
 
-    return "application/octet-stream";
+    return DEFAULT_RESPONSE;
 }
 
 void send_files(int client_fd, char *path) {
@@ -222,11 +197,44 @@ static void handle_request(int client_fd) {
 	close(client_fd);
 }
 
+void send_404_response(int client_fd) {
+	// 1. Cuerpo HTML estático para el usuario
+    const char *html_body = 
+        "<html><body>"
+        "<h1>404 Not Found</h1>"
+        "<p>El recurso solicitado no existe en este servidor SIOP.</p>"
+        "</body></html>\r\n";
+        
+    int body_len = strlen(html_body); 
+
+    char http_response[BUFFER_SIZE];
+    
+    // 2. Construcción de la Respuesta (Cabeceras + Cuerpo)
+    // NOTA: Es esencial incluir la línea de estado "HTTP/1.0 404 Not Found"
+    int response_len = snprintf(http_response, BUFFER_SIZE,
+        "HTTP/1.0 404 Not Found\r\n" 
+        "Content-Type: text/html\r\n"
+        "Content-Length: %zu\r\n" // Usamos %zu ya que body_len es size_t
+        "Connection: close\r\n"
+        "\r\n" // Línea en blanco que separa cabeceras del cuerpo
+        "%s",
+        body_len, html_body);
+    
+    // 3. Envío
+    int bytes_sent = write(client_fd, http_response, response_len);
+    
+    if (bytes_sent < 0) {
+        perror("Error al enviar la respuesta 404");
+    } else {
+        printf("Respuesta 404 Not Found enviada.\n");
+    }
+}
+
 static void accept_requests(WebServer *server) 
 {
 	int server_fd = server->socket_fd;
 
-	while(*server)
+	while(server)
 	{
 		IPv4Endpoint client_addr;
 		socklen_t client_addr_len = sizeof(client_addr);
