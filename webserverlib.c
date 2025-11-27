@@ -83,27 +83,32 @@ static int start_listening(int socket_fd)
 }
 
 static const char *get_mime_type(const char *path) {
-	const char *ext = strrchr(path, '.');
+	const char *file_extension = strrchr(path, '.');
 	const char DEFAULT_RESPONSE = "application/octet-stream";
 
-	if (!ext) return DEFAULT_RESPONSE;
+	if (!file_extension) return DEFAULT_RESPONSE;
 
-	if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)
+	if (strcmp(file_extension, ".html") == 0)
 		return "text/html";
-    if (strcmp(ext, ".css") == 0)
+		
+    else if (strcmp(file_extension, ".css") == 0)
 		return "text/css";
-    if (strcmp(ext, ".js") == 0)
+		
+    else if (strcmp(file_extension, ".js") == 0)
 		return "application/javascript";
-    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0)
+		
+    else if (strcmp(file_extension, ".jpg") == 0 || 
+			 strcmp(file_extension, ".jpeg") == 0)
 		return "image/jpeg";
-    if (strcmp(ext, ".png") == 0)
+		
+    else if (strcmp(file_extension, ".png") == 0)
 		return "image/png";
-    if (strcmp(ext, ".gif") == 0)
+		
+    else if (strcmp(file_extension, ".gif") == 0)
 		return "image/gif";
-    if (strcmp(ext, ".txt") == 0)
-		return "text/plain";
-
-    return DEFAULT_RESPONSE;
+		
+	else
+		return DEFAULT_RESPONSE;
 }
 
 void send_files(int client_fd, char *path) {
