@@ -18,15 +18,12 @@
 
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LENGTH 1024
-#define WEB_ROOT "www"
-
 
 static void end_process_with_error(int error_code);
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
 static int start_listening(int socket_fd);
 static const char *get_mime_type(const char *path);
 static void handle_request(int client_fd);
-
 
 WebServer *start_webserver(int port)
 {	
@@ -43,7 +40,7 @@ WebServer *start_webserver(int port)
     int is_listening = start_listening(socket_fd);
     if (!is_listening)
         end_process_with_error(ERR_LISTEN);
-	printf("Servidor escuchando\n");
+	printf("Servidor escuchando...\n");
     
     WebServer *server = malloc(sizeof(WebServer));
     if (!server)
@@ -53,7 +50,7 @@ WebServer *start_webserver(int port)
 	server->socket_fd = socket_fd;
 	server->max_clients = MAX_CLIENTS_IN_QUEUE;
 
-	printf("Servidor inicializado\n");
+	printf("Servidor inicializado.\n");
 	
     return server;
 }
@@ -96,65 +93,35 @@ void send_static_404_response(int client_fd) {
     char http_response[BUFFER_SIZE];
     
     int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n" 
+        "HTTP/1.0 404 Not Found\r\n"
         "Content-Type: text/html\r\n"
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
-        "\r\n" 
+        "\r\n"
         "%s",
         body_len, html_body);
     
     write(client_fd, http_response, response_len); 
 }
 
-static const char *get_mime_type(const char *path) {
-	const char *file_extension = strrchr(path, '.');
-	const char *DEFAULT_RESPONSE = "application/octet-stream";
-
-	if (!file_extension) return DEFAULT_RESPONSE;
-
-	if (strcmp(file_extension, ".html") == 0)
-		return "text/html";
-		
-    else if (strcmp(file_extension, ".css") == 0)
-		return "text/css";
-		
-    else if (strcmp(file_extension, ".js") == 0)
-		return "application/javascript";
-		
-    else if (strcmp(file_extension, ".jpg") == 0 || 
-			 strcmp(file_extension, ".jpeg") == 0)
-		return "image/jpeg";
-		
-    else if (strcmp(file_extension, ".png") == 0)
-		return "image/png";
-		
-    else if (strcmp(file_extension, ".gif") == 0)
-		return "image/gif";
-		
-	else
-		return DEFAULT_RESPONSE;
-}
-
-static void handle_request(int client_fd) {
+static void handle_request(WebServer *server, int client_fd) {
 	char request_buffer[BUFFER_SIZE]; 
 
-	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
+	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE - 1);
 	char *method;
-	if (bytes_received < 0) {
+	if (bytes_received < 0)
 		perror("ERR: No se ha podido manejar una petición HTTP.\n");
-	}
 
-	else if (bytes_received == 0) {
+	else if (bytes_received == 0)
 		printf("El cliente terminó la conexión.\n");
-	}
 
 	else {
 		request_buffer[bytes_received] = '\0';
-		char *path;
 		// Trucamos la primera línea de la petición
-		char *request_line = strtok(request_buffer, "\r\n");
 		
+		HttpRequest request;
+		parse_http_request(&request_line, &request);
+		char *path;
 		if (request_line == NULL) {
 			send_404_response(client_fd);
 		}
