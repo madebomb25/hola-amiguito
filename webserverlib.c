@@ -1,14 +1,16 @@
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <stddef.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "http_handler.h"
 #include "webserverlib.h"
-#include "socket_utils.h"
 
 #define MAX_CLIENTS_IN_QUEUE 5
 #define ERR_OPEN_SOCKET -1
@@ -17,45 +19,92 @@
 #define ERR_MEMORY -4
 
 #define BUFFER_SIZE 4096
-#define MAX_PATH_LENGTH 1024
-#define WEB_ROOT "www"
 
+extern volatile sig_atomic_t end_process;
 
 static void end_process_with_error(int error_code);
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
 static int start_listening(int socket_fd);
-static const char *get_mime_type(const char *path);
-static void handle_request(int client_fd);
+static void handle_request(WebServer *server, int client_fd);
 
+WebServer *start_webserver(const char *web_root_path, int port)
+{
+	int socket_fd;
+	int opt_value = 1;
+	IPv4Endpoint endpoint;
+	WebServer *server = NULL;
 
-WebServer *start_webserver(int port)
-{	
-    int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (socket_fd < 0) 
+	if (!web_root_path)
+		end_process_with_error(ERR_MEMORY);
+
+	socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (socket_fd < 0)
 		end_process_with_error(ERR_OPEN_SOCKET);
-    
-    IPv4Endpoint endpoint;
-    endpoint = make_ipv4_endpoint("0.0.0.0", port);
-    int is_binded = bind_socket_to_endpoint(socket_fd, &endpoint);
-    if (!is_binded)
-        end_process_with_error(ERR_BIND_SOCKET);
-    
-    int is_listening = start_listening(socket_fd);
-    if (!is_listening)
-        end_process_with_error(ERR_LISTEN);
-	printf("Servidor escuchando\n");
-    
-    WebServer *server = malloc(sizeof(WebServer));
-    if (!server)
+
+	setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt_value, sizeof(opt_value));
+
+	endpoint = make_ipv4_endpoint("0.0.0.0", port);
+	if (!bind_socket_to_endpoint(socket_fd, &endpoint))
+		end_process_with_error(ERR_BIND_SOCKET);
+
+	if (!start_listening(socket_fd))
+		end_process_with_error(ERR_LISTEN);
+
+	server = malloc(sizeof(WebServer));
+	if (!server)
 		end_process_with_error(ERR_MEMORY);
 
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
 	server->max_clients = MAX_CLIENTS_IN_QUEUE;
+	server->WEB_ROOT_PATH = strdup(web_root_path);
+	if (!server->WEB_ROOT_PATH)
+		end_process_with_error(ERR_MEMORY);
 
-	printf("Servidor inicializado\n");
-	
-    return server;
+	return server;
+}
+
+void accept_requests(WebServer *server)
+{
+	fd_set read_fds;
+	struct timeval timeout;
+	int server_fd;
+
+	if (!server)
+		return;
+
+	server_fd = server->socket_fd;
+	while (!end_process) {
+		FD_ZERO(&read_fds);
+		FD_SET(server_fd, &read_fds);
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+
+		int ready = select(server_fd + 1, &read_fds, NULL, NULL, &timeout);
+		if (ready < 0) {
+			if (errno == EINTR)
+				continue;
+			perror("ERR: No se ha podido esperar conexiones entrantes");
+			break;
+		}
+
+		if (ready == 0)
+			continue;
+
+		if (FD_ISSET(server_fd, &read_fds)) {
+			IPv4Endpoint client_addr;
+			socklen_t client_len = sizeof(client_addr);
+			int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+			if (client_fd < 0) {
+				if (errno == EINTR)
+					continue;
+				perror("ERR: No se ha podido aceptar una petición.");
+				continue;
+			}
+
+			handle_request(server, client_fd);
+		}
+	}
 }
 
 static void end_process_with_error(int error_code)
@@ -73,203 +122,61 @@ static void end_process_with_error(int error_code)
 	exit(error_code);
 }
 
-
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint)
 {
-    return bind(socket_fd, (struct sockaddr *)endpoint, sizeof(*endpoint)) == 0;
+	return bind(socket_fd, (struct sockaddr *)endpoint, sizeof(*endpoint)) == 0;
 }
 
 static int start_listening(int socket_fd)
 {
-    return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
+	return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
 }
 
-void send_static_404_response(int client_fd) {
-	const char *html_body = 
-        "<html><body>"
-        "<h1>404 Not Found</h1>"
-        "<p>El recurso solicitado no existe en este servidor.</p>"
-        "</body></html>\r\n";
-        
-    size_t body_len = strlen(html_body); 
+static void handle_request(WebServer *server, int client_fd)
+{
+	char request_buffer[BUFFER_SIZE];
+	ssize_t bytes_received;
+	char *method = NULL;
+	char *requested_path = NULL;
+	char *request_line = NULL;
 
-    char http_response[BUFFER_SIZE];
-    
-    int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n" 
-        "Content-Type: text/html\r\n"
-        "Content-Length: %zu\r\n"
-        "Connection: close\r\n"
-        "\r\n" 
-        "%s",
-        body_len, html_body);
-    
-    write(client_fd, http_response, response_len); 
-}
+	bytes_received = read(client_fd, request_buffer, sizeof(request_buffer) - 1);
+	if (bytes_received <= 0) {
+		if (bytes_received < 0)
+			perror("ERR: No se ha podido manejar una petición HTTP");
+		close(client_fd);
+		return;
+	}
 
-static const char *get_mime_type(const char *path) {
-	const char *file_extension = strrchr(path, '.');
-	const char *DEFAULT_RESPONSE = "application/octet-stream";
+	request_buffer[bytes_received] = '\0';
+	request_line = strtok(request_buffer, "\r\n");
+	if (!request_line) {
+		send_404_response(client_fd, server->WEB_ROOT_PATH);
+		close(client_fd);
+		return;
+	}
 
-	if (!file_extension) return DEFAULT_RESPONSE;
+	method = strtok(request_line, " ");
+	requested_path = strtok(NULL, " ");
 
-	if (strcmp(file_extension, ".html") == 0)
-		return "text/html";
-		
-    else if (strcmp(file_extension, ".css") == 0)
-		return "text/css";
-		
-    else if (strcmp(file_extension, ".js") == 0)
-		return "application/javascript";
-		
-    else if (strcmp(file_extension, ".jpg") == 0 || 
-			 strcmp(file_extension, ".jpeg") == 0)
-		return "image/jpeg";
-		
-    else if (strcmp(file_extension, ".png") == 0)
-		return "image/png";
-		
-    else if (strcmp(file_extension, ".gif") == 0)
-		return "image/gif";
-		
+	if (method && requested_path && strcmp(method, "GET") == 0)
+		send_files(client_fd, server->WEB_ROOT_PATH, requested_path, 200);
 	else
-		return DEFAULT_RESPONSE;
-}
+		send_404_response(client_fd, server->WEB_ROOT_PATH);
 
-static void handle_request(int client_fd) {
-	char request_buffer[BUFFER_SIZE]; 
-
-	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
-	char *method;
-	if (bytes_received < 0) {
-		perror("ERR: No se ha podido manejar una petición HTTP.\n");
-	}
-
-	else if (bytes_received == 0) {
-		printf("El cliente terminó la conexión.\n");
-	}
-
-	else {
-		request_buffer[bytes_received] = '\0';
-		char *path;
-		// Trucamos la primera línea de la petición
-		char *request_line = strtok(request_buffer, "\r\n");
-		
-		if (request_line == NULL) {
-			send_404_response(client_fd);
-		}
-
-		else {
-			method = strtok(request_line, " ");
-			path = strtok(NULL, " ");
-		}
-
-		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
-			send_files(client_fd, path, 200);
-		}
-		else {
-			send_404_response(client_fd);
-		}
-	}
 	close(client_fd);
 }
 
-void send_files(int client_fd, char *path, int status_code) {
-	char local_path[MAX_PATH_LENGTH + 5]; 
-	FILE *file = NULL; 
-	long file_size = 0;
-	char header_buffer[512]; 
-
-	// Si la request envía '/' respondemos con index.html si no
-	// procesamos el path especificado por el navegador 
-	if (strcmp(path, "/") == 0) {
-		snprintf(local_path, sizeof(local_path), "%s/index.html", WEB_ROOT);
-	}
-	else {
-		snprintf(local_path, sizeof(local_path), "%s%s", WEB_ROOT, path);
-	}
-
-	file = fopen(local_path, "rb");
-
-	if (file == NULL) {
-		// Si falla el puntero de lectura file no podremos
-		// renderizar un HTML "bonito" y en su lugar tendremos
-		// que mostrar un HTML estático a modo de fallback
-		if(status_code == 404) {
-			send_static_404_response(client_fd);
-		}
-		else {
-			send_404_response(client_fd);
-		}
-	}
-
-	else {
-		fseek(file, 0, SEEK_END);
-		file_size = ftell(file);
-		fseek(file, 0, SEEK_SET);
-
-		// Lidiamos con la petición que espera recibir 
-		// el navegador 
-		const char *mime_type = get_mime_type(local_path);
-
-		const char *status_message = (status_code == 200) ? "200 OK" : "404 Not Found";
-
-		int header_len = snprintf(header_buffer, sizeof(header_buffer), 
-			"HTTP/1.0 %s\r\n"
-			"Content-Type: %s\r\n"
-			"Content-Length: %ld\r\n"
-			"Connection: close\r\n"
-			"\r\n",
-			status_message, mime_type, file_size);
-
-		// Envío de cabeceras al cliente
-		write(client_fd, header_buffer, header_len);
-
-		// Enviar contenido del archivo 
-		char file_buffer[1024];
-		int bytes_read;
-
-		while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
-			if (write(client_fd, file_buffer, bytes_read) < 0) {
-				perror("Error al enviar contenido del archivo");
-				break;
-			}
-		}
-		fclose(file);
-	}
-}
-
-void send_404_response(int client_fd) {
-	send_files(client_fd, "/404.html", 404);
-}
-
-void accept_requests(WebServer *server) 
+void close_server(WebServer *server)
 {
-	int server_fd = server->socket_fd;
+	if (!server)
+		return;
 
-	while(server)
+	if (server->socket_fd >= 0)
 	{
-		IPv4Endpoint client_addr;
-		socklen_t client_addr_len = sizeof(client_addr);
-
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-
-		if (client_fd >= 0)
-		{
-			handle_request(client_fd);
-		}
-		else
-		{
-			/*Esto se podría implementar mediante end_process_with_error 
-			pero en caso de que una petición falle no queremos abortar la ejecución
-			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
-			perror("ERR: No se ha podido aceptar una petición.");
-		}
+		close(server->socket_fd);
+		server->socket_fd = -1;
 	}
-}
-
-void end_server(WebServer *server)
-{
-	close(server->socket_fd);
+	free(server->WEB_ROOT_PATH);
 	free(server);
 }
