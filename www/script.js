@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "common",
             timeMinutes: 120,
             description: "Paquet d'estudi garantit per superar SIOP sense perdre el cap.",
-            img: "images/Aprovat en SIOP.png"
+            img: "images/AprovatenSIOP.png"
         },
         {
             id: 2,
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "mythic",
             timeMinutes: 330,
             description: "Benvingut al panteó dels alumnes llegendaris.",
-            img: "images/Matrícula d'honor en SIOP.png"
+            img: "images/MatriculadhonorenSIOP.png"
         },
         {
             id: 3,
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "rare",
             timeMinutes: 3000,
             description: "Portàtil forjat al pla de Cupertino Prime.",
-            img: "images/Apple MacTime M3.png"
+            img: "images/AppleMacTimeM3.png"
         },
         {
             id: 5,
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "rare",
             timeMinutes: 4800,
             description: "Replica de pràctica per a duels temporals controlats.",
-            img: "images/Glock 18.png"
+            img: "images/Glock18.png"
         },
         {
             id: 6,
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "uncommon",
             timeMinutes: 45,
             description: "Manté l'ixir de cafè calent durant jornades eternes.",
-            img: "images/Ampolla d'aigua d'acer inoxidable.png"
+            img: "images/Ampolladaiguadacerinoxidable.png"
         },
         {
             id: 7,
@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "mythic",
             timeMinutes: 7200,
             description: "Peça de col·lecció per a mercenaris del temps.",
-            img: "images/Francotirador Barret M82.png"
+            img: "images/FrancotiradorBarretM82.png"
         },
         {
             id: 8,
@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "mythic",
             timeMinutes: 12000,
             description: "Moto aquàtica infusa amb essència planar.",
-            img: "images/Yamaha WaveRunner VX23.png"
+            img: "images/YamahaWaveRunnerVX23.png"
         },
         {
             id: 9,
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "rare",
             timeMinutes: 5400,
             description: "Equilibri perfecte entre control i potència rúnica.",
-            img: "images/Glock 20.png"
+            img: "images/Glock20.png"
         },
         {
             id: 10,
@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "uncommon",
             timeMinutes: 180,
             description: "Servei de suspensió estratègica per guanyar temps extra.",
-            img: "images/Suspés remot en SIOP.png"
+            img: "images/SuspesremotenSIOP.png"
         },
         {
             id: 11,
@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "common",
             timeMinutes: 30,
             description: "Efecte instantani per no adormir-te en cap ritual.",
-            img: "images/Pastilles de cafeïna.png"
+            img: "images/Pastillesdecafeina.png"
         },
         {
             id: 12,
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "common",
             timeMinutes: 15,
             description: "Controla cada segon sacrificat en els teus intercanvis.",
-            img: "images/Rellotge bàsic.png"
+            img: "images/Rellotgebasic.png"
         },
         {
             id: 13,
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "uncommon",
             timeMinutes: 75,
             description: "Elixir rosat que enamora fins i tot els guardians del temps.",
-            img: "images/poscima del amor.png"
+            img: "images/poscimadelamor.png"
         },
         {
             id: 15,
