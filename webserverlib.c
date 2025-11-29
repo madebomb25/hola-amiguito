@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <pthread.h>
 #include "webserverlib.h"
 #include "socket_utils.h"
 
@@ -243,6 +244,15 @@ void send_404_response(int client_fd) {
 	send_files(client_fd, "/404.html", 404);
 }
 
+void* thread_function(void *arg){
+	int client_fd = *(int*)arg;
+	free(arg);
+
+	handle_request(client_fd);	// Gestió de peticions
+
+	return NULL;
+}
+
 void accept_requests(WebServer *server) 
 {
 	int server_fd = server->socket_fd;
@@ -253,10 +263,34 @@ void accept_requests(WebServer *server)
 		socklen_t client_addr_len = sizeof(client_addr);
 
 		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-
+		/* Comprovamos que al aceptar la petición, accept() nos devuelva un socket valido. */
 		if (client_fd >= 0)
 		{
-			handle_request(client_fd);
+			
+			/* Reservamos memoria para almacenar el socket que nos han dado y con amb malloc nos aseguramos que 
+			no perdamos ese socket en la siguiente iteración del bucle. Este spcket se usará para el nuevo thread. */
+
+			int *pclient = malloc(sizeof(int));
+			*pclient = client_fd;
+
+			/* Creamos un identificador de thread. */
+
+			pthread_t tid;
+			
+			/* Creamos un nuevo hilo por cada nueva conexión, a la que guardamos un tid, este thread gestionará las 
+			   peticiones en thread_function() a través de handle_request(), usando el socket pclient.
+			
+			   En caso de haber un error al crear el nuevo hilo, avisamos al administrador. cerramos socket del cliente,
+			   liberamos memoria y continuamos con la siguiente iteración. */
+
+			if(pthread_create(&tid, NULL, thread_function, pclient) != 0) {
+				perror("Error: Fail to create a new thread.");
+				close(client_fd);
+				free(pclient);
+				continue;
+			} 
+
+			pthread_detach(tid);
 		}
 		else
 		{
