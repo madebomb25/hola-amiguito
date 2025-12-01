@@ -1,24 +1,41 @@
-#ifndef WEBSERVER_H
-#define WEBSERVER_H
+#ifndef WEBSERVER_LIB_H
+#define WEBSERVER_LIB_H
 
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include "socket_utils.h"
+#include "socket_utils.h" 
+#include <stddef.h> 
+#include <stdlib.h>
+#include <unistd.h>
 
-#define ERR_OPEN_SOCKET  -1
-#define ERR_BIND_SOCKET  -2
-#define ERR_LISTEN       -3
 
-typedef struct sockaddr_in IPv4SocketAddress;
+#define MAX_CLIENTS_IN_QUEUE 5
+#define ERR_OPEN_SOCKET -1
+#define ERR_BIND_SOCKET -2
+#define ERR_LISTEN -3
+#define ERR_MEMORY -4
 
-/* TO DO: modificar firma para que el valor que retorna start_webserver no sea int
-si no WebServer. Hay que buscar de alguna manera que no pete "WebServer is undefined" */
-int *start_webserver(int port);
-static void end_process_with_error(int error_code);
-static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
-static int start_listening(int socket_fd);
-// static void accept_requests(WebServer *server);
+#define BUFFER_SIZE 4096
+#define MAX_PATH_LENGTH 1024
+#define WEB_ROOT "www"
 
-#endif
+
+typedef struct 
+{
+    int socket_fd;
+    IPv4Endpoint endpoint;
+    int max_clients;
+} WebServer;
+
+
+WebServer *start_webserver(int port);
+
+void accept_requests(WebServer *server);
+
+void send_files(int client_fd, char *path, int status_code);
+
+void send_404_response(int client_fd);
+
+void send_static_404_response(int client_fd);
+
+void end_server(WebServer *server); 
+
+#endif 

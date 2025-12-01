@@ -8,45 +8,6 @@
 #include <sys/stat.h>
 #include "cache.h"
 
-
-
-#define MAX_CACHE_ENTRIES 10
-#define MAX_PATH_LEN 256
-
-typedef struct
-{
-	char path[MAX_PATH_LEN]; // p.e. "/index.html"
-    char *data;              // contenido del archivo en memoria
-    size_t size;             // tamaño del contenido
-    time_t mtime;            // última modificación en disco
-    int in_use;              // 0 = libre, 1 = usada
-    time_t last_access;      // para implementar LRU
-} CacheEntry;
-
-void alex_cache(){
-    CacheEntry cache[MAX_CACHE_ENTRIES];
-    init_cache(cache);
-    CacheEntry *entry = find_in_cache(path);
-    if (entry && is_cache_valid(entry, filepath)) {
-        entry->last_access = time(NULL);
-        // enviar cabeceras HTTP...
-        write(client_sock, entry->data, entry->size);
-        return;
-    }
-    else{
-        size_t size;
-        time_t mtime;
-        char *data = load_file(cache, filepath, &size, &mtime);
-        if (!data) {
-            // devolver 404 o error
-        } else {
-            store_in_cache(path, filepath, data, size, mtime);
-            // enviar cabeceras HTTP...
-            write(client_sock, data, size);
-        }
-    }
-}
-
 void init_cache(CacheEntry *cache) {
     for (int i = 0; i < MAX_CACHE_ENTRIES; i++) {
         cache[i].in_use = 0;
@@ -111,8 +72,8 @@ CacheEntry* get_free_or_lru_entry(CacheEntry *cache) {
 void store_in_cache(CacheEntry *cache, const char *path, const char *filepath,
                     char *data, size_t size, time_t mtime) {
     CacheEntry *entry = get_free_or_lru_entry(cache);
-    strncpy(entry->path, path, MAX_PATH_LEN-1);
-    entry->path[MAX_PATH_LEN-1] = '\0';
+    strncpy(entry->path, path, MAX_PATH_LENGTH-1);
+    entry->path[MAX_PATH_LENGTH-1] = '\0';
     entry->data = data;
     entry->size = size;
     entry->mtime = mtime;

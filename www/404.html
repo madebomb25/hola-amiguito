@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoCart · 404</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+    <header class="main-header">
+        <div class="logo-stack">
+            <a href="index.html" class="logo" aria-label="Torna a la portada">ChronoCart</a>
+            <span class="tagline">El portal que busques ja no existeix</span>
+        </div>
+        <button class="ghost" onclick="window.location.href='index.html'">⬅ Torna a la botiga</button>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-text">
+                <p class="eyebrow">Error 404</p>
+                <h1>El fil temporal s'ha trencat.</h1>
+                <p>Hem rastrejat totes les línies temporals disponibles i no hem trobat el producte, el ritual o la dimensió que estaves buscant. Potser ha estat consumida per un Time Thief despistat.</p>
+                <div class="hero-actions">
+                    <button class="primary" onclick="window.location.href='index.html'">Torna al Nexus</button>
+                    <button class="ghost" onclick="document.getElementById('suggestions').scrollIntoView({behavior:'smooth'})">Descobreix alternatives</button>
+                </div>
+            </div>
+            <div class="hero-card">
+                <h2>Coordenades perdudes</h2>
+                <p>ID d'anomalia: <strong>#404-CRONO</strong></p>
+                <p>Temps estimat per recuperar-la: <strong>Infinit</strong></p>
+                <div class="hero-timer">
+                    <span>Últim ping</span>
+                    <strong>00h 00m</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="catalog" id="suggestions">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Mentrestant</p>
+                    <h2>Relíquies suggerides</h2>
+                </div>
+            </div>
+            <div class="products">
+                <article class="product rarity-rare">
+                    <div class="rarity-chip">RARE</div>
+                    <img src="images/AppleMacTimeM3.png" alt="Apple MacTime M3">
+                    <h3>Apple MacTime M3</h3>
+                    <p class="description">Portàtil forjat al pla de Cupertino Prime ideal per les entregues de SIOP.</p>
+                    <div class="time-cost">
+                        <span>Cost temporal</span>
+                        <strong>50h 0m</strong>
+                    </div>
+                    <button class="primary" onclick="window.location.href='index.html'">Explora</button>
+                </article>
+                <article class="product rarity-mythic">
+                    <div class="rarity-chip">MYTHIC</div>
+                    <img src="images/dragon.png" alt="Drac del Vòrtex">
+                    <h3>Guardià Drac del Vòrtex</h3>
+                    <p class="description">Una bèstia vigil que pot guiar-te fins a la pàgina correcta.</p>
+                    <div class="time-cost">
+                        <span>Cost temporal</span>
+                        <strong>160h 0m</strong>
+                    </div>
+                    <button class="primary" onclick="window.location.href='index.html'">Invoca'l</button>
+                </article>
+                <article class="product rarity-uncommon">
+                    <div class="rarity-chip">UNCOMMON</div>
+                    <img src="images/Ampolladaiguadacerinoxidable.png" alt="Ampolla encantada">
+                    <h3>Ampolla d'acer oxidable</h3>
+                    <p class="description">Mantén la calma i rehidrata't abans de reprendre el viatge.</p>
+                    <div class="time-cost">
+                        <span>Cost temporal</span>
+                        <strong>0h 45m</strong>
+                    </div>
+                    <button class="primary" onclick="window.location.href='index.html'">Continuar</button>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <footer>
+        <p>© 2025 ChronoCart · Els errors també formen part del multivers.</p>
+    </footer>
+
+    <script>
+        (function initParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = Math.max(document.body.scrollHeight, window.innerHeight);
+            const particles = Array.from({ length: 50 }, () => createParticle());
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = Math.max(document.body.scrollHeight, window.innerHeight);
+            }
+
+            function createParticle() {
+                return {
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 2 + 0.5,
+                    speedX: (Math.random() - 0.5) * 0.2,
+                    speedY: Math.random() * 0.6 + 0.1,
+                    alpha: Math.random() * 0.5 + 0.2,
+                    hue: 220 + Math.random() * 120
+                };
+            }
+
+            function draw() {
+                const neededHeight = Math.max(document.body.scrollHeight, window.innerHeight);
+                if (neededHeight !== height) {
+                    height = neededHeight;
+                    canvas.height = height;
+                }
+                ctx.clearRect(0, 0, width, height);
+                ctx.globalCompositeOperation = 'lighter';
+                particles.forEach((p) => {
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                    if (p.y > height || p.x < 0 || p.x > width) {
+                        Object.assign(p, createParticle(), { y: -10 });
+                    }
+                    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 12);
+                    gradient.addColorStop(0, `hsla(${p.hue}, 85%, 75%, ${p.alpha})`);
+                    gradient.addColorStop(1, 'transparent');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * 12, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                requestAnimationFrame(draw);
+            }
+
+            window.addEventListener('resize', resize);
+            draw();
+        })();
+    </script>
+</body>
+</html>

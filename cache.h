@@ -7,12 +7,12 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define MAX_CACHE_ENTRIES 10
-#define MAX_PATH_LEN 256
+#define MAX_CACHE_ENTRIES 21
+#define MAX_PATH_LENGTH 1024
 
 typedef struct
 {
-    char path[MAX_PATH_LEN];   // Ruta tipo "/index.html"
+    char path[MAX_PATH_LENGTH];   // Ruta tipo "/index.html"
     char *data;                // Contenido cargado en memoria
     size_t size;               // Tamaño del contenido
     time_t mtime;              // Última modificación del archivo en disco
@@ -21,8 +21,6 @@ typedef struct
 } CacheEntry;
 
 /* FUNCIONES DEL CACHE */
-
-void alex_cache();
 
 void init_cache(CacheEntry *cache);
 

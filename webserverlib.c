@@ -5,7 +5,12 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stddef.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <pthread.h>
+#include "webserverlib.h"
 #include "socket_utils.h"
+#include "cache.h"
 
 #define MAX_CLIENTS_IN_QUEUE 5
 #define ERR_OPEN_SOCKET -1
@@ -13,14 +18,18 @@
 #define ERR_LISTEN -3
 #define ERR_MEMORY -4
 
-typedef struct 
-{
-	int socket_fd;
-	IPv4Endpoint endpoint;
-	int max_clients;
-	int error;
-	
-} WebServer;
+#define BUFFER_SIZE 4096
+#define WEB_ROOT "www"
+
+static CacheEntry cache[MAX_CACHE_ENTRIES];
+static pthread_mutex_t cache_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void end_process_with_error(int error_code);
+static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
+static int start_listening(int socket_fd);
+static const char *get_mime_type(const char *path);
+static void handle_request(int client_fd);
+
 
 WebServer *start_webserver(int port)
 {	
@@ -29,7 +38,7 @@ WebServer *start_webserver(int port)
 		end_process_with_error(ERR_OPEN_SOCKET);
     
     IPv4Endpoint endpoint;
-    endpoint = make_ipv4_endpoint("127.0.0.0", port);
+    endpoint = make_ipv4_endpoint("0.0.0.0", port);
     int is_binded = bind_socket_to_endpoint(socket_fd, &endpoint);
     if (!is_binded)
         end_process_with_error(ERR_BIND_SOCKET);
@@ -37,16 +46,19 @@ WebServer *start_webserver(int port)
     int is_listening = start_listening(socket_fd);
     if (!is_listening)
         end_process_with_error(ERR_LISTEN);
+	printf("Servidor escuchando\n");
     
     WebServer *server = malloc(sizeof(WebServer));
     if (!server)
-    {
-		free(server);
 		end_process_with_error(ERR_MEMORY);
-	}
-	// Asignación de valores a los campos del struct 
+
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
+	server->max_clients = MAX_CLIENTS_IN_QUEUE;
+
+	printf("Servidor inicializado\n");
+	
+	init_cache(cache);
 	
     return server;
 }
@@ -66,6 +78,7 @@ static void end_process_with_error(int error_code)
 	exit(error_code);
 }
 
+
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint)
 {
     return bind(socket_fd, (struct sockaddr *)endpoint, sizeof(*endpoint)) == 0;
@@ -76,25 +89,242 @@ static int start_listening(int socket_fd)
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
 }
 
-/* TO DO: Esta función debe ir dentro de start_webserver? */
-static void accept_requests(WebServer *server) 
+void send_static_404_response(int client_fd) {
+	const char *html_body = 
+        "<html><body>"
+        "<h1>404 Not Found</h1>"
+        "<p>El recurso solicitado no existe en este servidor.</p>"
+        "</body></html>\r\n";
+        
+    size_t body_len = strlen(html_body); 
+
+    char http_response[BUFFER_SIZE];
+    
+    int response_len = snprintf(http_response, BUFFER_SIZE,
+        "HTTP/1.0 404 Not Found\r\n" 
+        "Content-Type: text/html\r\n"
+        "Content-Length: %zu\r\n"
+        "Connection: close\r\n"
+        "\r\n" 
+        "%s",
+        body_len, html_body);
+    
+    write(client_fd, http_response, response_len); 
+}
+
+static const char *get_mime_type(const char *path) {
+	const char *file_extension = strrchr(path, '.');
+	const char *DEFAULT_RESPONSE = "application/octet-stream";
+
+	if (!file_extension) return DEFAULT_RESPONSE;
+
+	if (strcmp(file_extension, ".html") == 0)
+		return "text/html";
+		
+    else if (strcmp(file_extension, ".css") == 0)
+		return "text/css";
+		
+    else if (strcmp(file_extension, ".js") == 0)
+		return "application/javascript";
+		
+    else if (strcmp(file_extension, ".jpg") == 0 || 
+			 strcmp(file_extension, ".jpeg") == 0)
+		return "image/jpeg";
+		
+    else if (strcmp(file_extension, ".png") == 0)
+		return "image/png";
+		
+    else if (strcmp(file_extension, ".gif") == 0)
+		return "image/gif";
+		
+	else
+		return DEFAULT_RESPONSE;
+}
+
+static void handle_request(int client_fd) {
+	char request_buffer[BUFFER_SIZE]; 
+
+	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE -1);
+	char *method;
+	if (bytes_received < 0) {
+		perror("ERR: No se ha podido manejar una petición HTTP.\n");
+	}
+
+	else if (bytes_received == 0) {
+		printf("El cliente terminó la conexión.\n");
+	}
+
+	else {
+		request_buffer[bytes_received] = '\0';
+		char *path;
+		// Trucamos la primera línea de la petición
+		char *request_line = strtok(request_buffer, "\r\n");
+		
+		if (request_line == NULL) {
+			send_404_response(client_fd);
+		}
+
+		else {
+			method = strtok(request_line, " ");
+			path = strtok(NULL, " ");
+		}
+
+		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
+			send_files(client_fd, path, 200);
+		}
+		else {
+			send_404_response(client_fd);
+		}
+	}
+	close(client_fd);
+}
+
+void send_files(int client_fd, char *path, int status_code) {
+	char local_path[MAX_PATH_LENGTH + 5]; 
+	char cache_key[MAX_PATH_LENGTH];
+	char header_buffer[512]; 
+
+	// Si la request envía '/' respondemos con index.html si no
+	// procesamos el path especificado por el navegador 
+	if (strcmp(path, "/") == 0) {
+		snprintf(local_path, sizeof(local_path), "%s/index.html", WEB_ROOT);
+		snprintf(cache_key, sizeof(cache_key), "/index.html");
+	}
+	else {
+		snprintf(local_path, sizeof(local_path), "%s%s", WEB_ROOT, path);
+		snprintf(cache_key, sizeof(cache_key), "%s", path);
+	}
+	// Lidiamos con la petición que espera recibir 
+	// el navegador 
+	const char *mime_type = get_mime_type(local_path);
+	const char *status_message = (status_code == 200) ? "200 OK" : "404 Not Found";
+
+	size_t file_size;
+	char *response_data = NULL;
+	int from_cache = 0;   // 0 = MISS, 1 = HIT
+
+	pthread_mutex_lock(&cache_mutex);
+	CacheEntry *entry = find_in_cache(cache, cache_key);
+
+	if (entry && is_cache_valid(entry, local_path)) {
+    	entry->last_access = time(NULL);
+        file_size = entry->size;
+        response_data = entry->data;
+		from_cache = 1;   // ✅ HIT
+        pthread_mutex_unlock(&cache_mutex);
+	}
+	else{
+		pthread_mutex_unlock(&cache_mutex);
+
+		time_t mtime;
+		char *data = load_file(local_path, &file_size, &mtime);
+
+		if (!data) {
+			// Si falla el puntero de lectura file no podremos
+			// renderizar un HTML "bonito" y en su lugar tendremos
+			// que mostrar un HTML estático a modo de fallback
+			if (status_code == 404) {
+				send_static_404_response(client_fd);
+			} else {
+				send_404_response(client_fd);
+			}
+			return;
+		}
+		pthread_mutex_lock(&cache_mutex);
+		store_in_cache(cache, cache_key, local_path, data, file_size, mtime);
+		pthread_mutex_unlock(&cache_mutex);
+
+		response_data = data;
+	}
+
+	int header_len = snprintf(header_buffer, sizeof(header_buffer), 
+		"HTTP/1.0 %s\r\n"
+		"Content-Type: %s\r\n"
+		"Content-Length: %ld\r\n"
+		"Connection: close\r\n"
+		"\r\n",
+		status_message, mime_type, file_size);
+	
+	printf("[CACHE] %s: %s (size=%zu)\n",
+       from_cache ? "HIT" : "MISS", cache_key, file_size);
+	
+	// Envío de cabeceras al cliente
+	write(client_fd, header_buffer, header_len);
+
+	size_t offset = 0;
+	while (offset < file_size){
+		size_t chunk = (file_size - offset >= 1024) ? 1024 : file_size - offset;
+		if (write(client_fd, response_data + offset, chunk) < 0) {
+			perror("Error al enviar contenido del archivo");
+		}
+	offset += chunk;
+	}
+}
+
+void send_404_response(int client_fd) {
+	send_files(client_fd, "/404.html", 404);
+}
+
+void* thread_function(void *arg){
+	int client_fd = *(int*)arg;
+	free(arg);
+
+	handle_request(client_fd);	// Gestió de peticions
+
+	return NULL;
+}
+
+void accept_requests(WebServer *server) 
 {
 	int server_fd = server->socket_fd;
 
-	while(1) {
-		struct sockaddr_in client_addr;
+	while(server)
+	{
+		IPv4Endpoint client_addr;
 		socklen_t client_addr_len = sizeof(client_addr);
 
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr);
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+		/* Comprovamos que al aceptar la petición, accept() nos devuelva un socket valido. */
+		if (client_fd >= 0)
+		{
+			
+			/* Reservamos memoria para almacenar el socket que nos han dado y con amb malloc nos aseguramos que 
+			no perdamos ese socket en la siguiente iteración del bucle. Este spcket se usará para el nuevo thread. */
 
-		if (client_fd >= 0) {
-			handle_request(client_fd);
+			int *pclient = malloc(sizeof(int));
+			*pclient = client_fd;
+
+			/* Creamos un identificador de thread. */
+
+			pthread_t tid;
+			
+			/* Creamos un nuevo hilo por cada nueva conexión, a la que guardamos un tid, este thread gestionará las 
+			   peticiones en thread_function() a través de handle_request(), usando el socket pclient.
+			
+			   En caso de haber un error al crear el nuevo hilo, avisamos al administrador. cerramos socket del cliente,
+			   liberamos memoria y continuamos con la siguiente iteración. */
+
+			if(pthread_create(&tid, NULL, thread_function, pclient) != 0) {
+				perror("Error: Fail to create a new thread.");
+				close(client_fd);
+				free(pclient);
+				continue;
+			} 
+
+			pthread_detach(tid);
 		}
-		else {
+		else
+		{
 			/*Esto se podría implementar mediante end_process_with_error 
 			pero en caso de que una petición falle no queremos abortar la ejecución
 			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
-			printf("ERR: No se ha podido aceptar una petición.");
+			perror("ERR: No se ha podido aceptar una petición.");
 		}
 	}
+}
+
+void end_server(WebServer *server)
+{
+	close(server->socket_fd);
+	free(server);
 }
