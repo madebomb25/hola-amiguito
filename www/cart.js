@@ -18,20 +18,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const cvvInput = document.getElementById("cardCvv");
 
     const products = [
-        { id: 1, name: "Aprovat en SIOP", timeMinutes: 120, img: "images/Aprovat en SIOP.png" },
-        { id: 2, name: "Matrícula d'honor en SIOP", timeMinutes: 330, img: "images/Matrícula d'honor en SIOP.png" },
+        { id: 1, name: "Aprovat en SIOP", timeMinutes: 120, img: "images/AprovatenSIOP.png" },
+        { id: 2, name: "Matrícula d'honor en SIOP", timeMinutes: 330, img: "images/MatriculadhonorenSIOP.png" },
         { id: 3, name: "Bolígraf Arcà", timeMinutes: 100 * 60, img: "images/boligraf.png" },
-        { id: 4, name: "Apple MacTime M3", timeMinutes: 3000, img: "images/Apple MacTime M3.png" },
-        { id: 5, name: "Glock 18", timeMinutes: 4800, img: "images/Glock 18.png" },
-        { id: 6, name: "Ampolla d'acer encantada", timeMinutes: 45, img: "images/Ampolla d'aigua d'acer inoxidable.png" },
-        { id: 7, name: "Francotirador Barret M82", timeMinutes: 7200, img: "images/Francotirador Barret M82.png" },
-        { id: 8, name: "Yamaha WaveRunner VX23", timeMinutes: 12000, img: "images/Yamaha WaveRunner VX23.png" },
-        { id: 9, name: "Glock 20", timeMinutes: 5400, img: "images/Glock 20.png" },
-        { id: 10, name: "Suspés remot en SIOP", timeMinutes: 180, img: "images/Suspés remot en SIOP.png" },
-        { id: 11, name: "Pastilles de cafeïna", timeMinutes: 30, img: "images/Pastilles de cafeïna.png" },
-        { id: 12, name: "Rellotge bàsic", timeMinutes: 15, img: "images/Rellotge bàsic.png" },
+        { id: 4, name: "Apple MacTime M3", timeMinutes: 3000, img: "images/AppleMacTimeM3.png" },
+        { id: 5, name: "Glock 18", timeMinutes: 4800, img: "images/Glock18.png" },
+        { id: 6, name: "Ampolla d'acer encantada", timeMinutes: 45, img: "images/Ampolladaiguadacerinoxidable.png" },
+        { id: 7, name: "Francotirador Barret M82", timeMinutes: 7200, img: "images/FrancotiradorBarretM82.png" },
+        { id: 8, name: "Yamaha WaveRunner VX23", timeMinutes: 12000, img: "images/YamahaWaveRunnerVX23.png" },
+        { id: 9, name: "Glock 20", timeMinutes: 5400, img: "images/Glock20.png" },
+        { id: 10, name: "Suspés remot en SIOP", timeMinutes: 180, img: "images/SuspesremotenSIOP.png" },
+        { id: 11, name: "Pastilles de cafeïna", timeMinutes: 30, img: "images/Pastillesdecafeïna.png" },
+        { id: 12, name: "Rellotge bàsic", timeMinutes: 15, img: "images/Rellotgebàsic.png" },
         { id: 13, name: "Drac del Vòrtex", timeMinutes: 9600, img: "images/dragon.png" },
-        { id: 14, name: "Poció d'Amor Temporal", timeMinutes: 75, img: "images/poscima del amor.png" },
+        { id: 14, name: "Poció d'Amor Temporal", timeMinutes: 75, img: "images/poscimadelamor.png" },
         { id: 15, name: "Orbe Gemini QH9", timeMinutes: 420, img: "images/Gemini_Generated_Image_qh9c21qh9c21qh9c.png" }
     ];
 

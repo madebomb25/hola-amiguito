@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Bolígraf Arcà",
             rarity: "common",
             timeMinutes: 100 * 60,
-            description: "Escriu rúniques infinites sense quedar-se sense tinta.",
+            description: "Què millor que un bolígraf molt car que et faci perdre el temps?",
             img: "images/boligraf.png"
         },
         {
@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Apple MacTime M3",
             rarity: "rare",
             timeMinutes: 3000,
-            description: "Portàtil forjat al pla de Cupertino Prime.",
+            description: "Portàtil forjat al pla de Cupertino Prime ideal per les entregues de SIOP.",
             img: "images/AppleMacTimeM3.png"
         },
         {
@@ -51,15 +51,15 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Glock 18",
             rarity: "rare",
             timeMinutes: 4800,
-            description: "Replica de pràctica per a duels temporals controlats.",
+            description: "Recent contrabandejada del sector del 20.",
             img: "images/Glock18.png"
         },
         {
             id: 6,
-            name: "Ampolla d'acer encantada",
+            name: "Ampolla d'acer oxidable",
             rarity: "uncommon",
             timeMinutes: 45,
-            description: "Manté l'ixir de cafè calent durant jornades eternes.",
+            description: "Per portar el que vulguis. No et jutjarem.",
             img: "images/Ampolladaiguadacerinoxidable.png"
         },
         {
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Yamaha WaveRunner VX23",
             rarity: "mythic",
             timeMinutes: 12000,
-            description: "Moto aquàtica infusa amb essència planar.",
+            description: "Fugeix d'un robatori de temps amb estil.",
             img: "images/YamahaWaveRunnerVX23.png"
         },
         {
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Glock 20",
             rarity: "rare",
             timeMinutes: 5400,
-            description: "Equilibri perfecte entre control i potència rúnica.",
+            description: "9 de cada 10 Time Thiefs la recomanen. No sabem què li va passar al desè.",
             img: "images/Glock20.png"
         },
         {
@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Suspés remot en SIOP",
             rarity: "uncommon",
             timeMinutes: 180,
-            description: "Servei de suspensió estratègica per guanyar temps extra.",
+            description: "Perfecte per quan tenir competència no et convé.",
             img: "images/SuspesremotenSIOP.png"
         },
         {
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Pastilles de cafeïna",
             rarity: "common",
             timeMinutes: 30,
-            description: "Efecte instantani per no adormir-te en cap ritual.",
+            description: "Efecte instantani per no perdre el temps.",
             img: "images/Pastillesdecafeina.png"
         },
         {
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Rellotge bàsic",
             rarity: "common",
             timeMinutes: 15,
-            description: "Controla cada segon sacrificat en els teus intercanvis.",
+            description: "Ideal per veure el temps passar.",
             img: "images/Rellotgebasic.png"
         },
         {
@@ -115,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Drac del Vòrtex",
             rarity: "mythic",
             timeMinutes: 9600,
-            description: "Mascota dracònica que vigila el teu inventari dimensional.",
+            description: "Visita al veterinari no inclosa.",
             img: "images/dragon.png"
         },
         {
@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Orbe Gemini QH9",
             rarity: "rare",
             timeMinutes: 420,
-            description: "Artefacte generatiu que duplica qualsevol relíquia una vegada al dia.",
+            description: "Ho sap tot. Abans li deiem intel·ligència artificial.",
             img: "images/Gemini_Generated_Image_qh9c21qh9c21qh9c.png"
         }
     ];
