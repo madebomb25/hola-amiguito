@@ -7,9 +7,11 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <pthread.h>
 #include "webserverlib.h"
 #include "socket_utils.h"
 #include "http_utils.h"
+#include "cache.h"
 
 #define MAX_CLIENTS_IN_QUEUE 5
 #define ERR_OPEN_SOCKET -1
@@ -20,27 +22,24 @@
 #define BUFFER_SIZE 4096
 #define MAX_PATH_LENGTH 1024
 
-static void end_process_with_error(int error_code);
-static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
-static int start_listening(int socket_fd);
-static void handle_request(WebServer *server, int client_fd);
-static void make_path_to_web_file(WebServer *server, HttpRequest *request, char *dest);
-static void send_file(WebServer *server, int client_fd, char *path, int status_code);
-static void send_static_404_response(int client_fd);
-static void send_404_response(int client_fd);
-static const char *get_mime_type(const char *path);
+static CacheEntry cache[MAX_CACHE_ENTRIES];
+static pthread_mutex_t cache_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct 
 {
 	int socket_fd;
 	IPv4Endpoint endpoint;
 	char *WEB_ROOT_PATH;
-	char *DEFAULT_WEB_PATH;
 	int max_clients;
 	
 } WebServer;
 
-WebServer *start_webserver(char* WEB_ROOT_PATH, char* DEFAULT_WEB_PATH, int port)
+typedef struct {
+	WebServer *server;
+	int client_fd;
+} ThreadRequestData;
+
+WebServer *start_webserver(char* WEB_ROOT_PATH, int port)
 {	
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_fd < 0) 
@@ -55,6 +54,7 @@ WebServer *start_webserver(char* WEB_ROOT_PATH, char* DEFAULT_WEB_PATH, int port
     int is_listening = start_listening(socket_fd);
     if (!is_listening)
         end_process_with_error(ERR_LISTEN);
+
 	printf("Servidor escuchando...\n");
     
     WebServer *server = malloc(sizeof(WebServer));
@@ -65,9 +65,11 @@ WebServer *start_webserver(char* WEB_ROOT_PATH, char* DEFAULT_WEB_PATH, int port
 	server->socket_fd = socket_fd;
 	server->max_clients = MAX_CLIENTS_IN_QUEUE;
 	server->WEB_ROOT_PATH = WEB_ROOT_PATH;
-	server->DEFAULT_WEB_PATH = DEFAULT_WEB_PATH;
 
 	printf("Servidor inicializado.\n");
+	
+	init_cache(cache);
+	
     return server;
 }
 
@@ -97,7 +99,7 @@ static int start_listening(int socket_fd)
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
 }
 
-void accept_requests(WebServer *server) 
+static void accept_requests(WebServer *server) 
 {
 	int server_fd = server->socket_fd;
 
@@ -105,18 +107,47 @@ void accept_requests(WebServer *server)
 	{
 		IPv4Endpoint client_addr;
 		socklen_t client_addr_len = sizeof(client_addr);
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 		if (client_fd >= 0)
-			handle_request(server, client_fd);
+			let_thread_handle_request(server, client_fd);
+			
 		else
 		{
-			/*Esto se podría implementar mediante end_process_with_error 
-			pero en caso de que una petición falle no queremos abortar la ejecución
+			/*En caso de que una petición falle no queremos abortar la ejecución
 			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
 			perror("ERR: No se ha podido aceptar una petición.");
 		}
 	}
+}
+
+static void let_thread_handle_request(WebServer *server, int client_fd)
+{	
+	ThreadRequestData *thread_data = malloc(sizeof(ThreadRequestData));
+	thread_data->server = server;
+	thread_data->client_fd = client_fd;
+	
+	pthread_t tid;
+	
+	/* Creamos un nuevo hilo por cada nueva conexión para repartir
+	 * la carga en varios núcleos del procesador.*/
+	 
+	if (pthread_create(&tid, NULL, thread_function, thread_data) != 0) {
+		perror("ERR: No se ha podido asignar un hilo a una petición.");
+		close(client_fd);
+		free(thread_data);
+	}
+	else
+		pthread_detach(tid);
+}
+
+void* thread_function(void *arg){
+	ThreadRequestData *data = (ThreadRequestData*) arg;
+
+	handle_request(data->server, data->client_fd);
+	free(arg);
+
+	pthread_exit(NULL);
 }
 
 static void handle_request(WebServer *server, int client_fd) {
@@ -135,86 +166,111 @@ static void handle_request(WebServer *server, int client_fd) {
 		parse_http_request(request_buffer, &request);
 		
 		if (http_request_has_valid_structure(request) && 
-			http_request_is_GET(request)) &&
-			strstr(request->path, "..")
-		{
-			char path_to_file[MAX_PATH_LENGTH + 5];
-			make_path_to_web_file(path_to_file, server->WEB_ROOT_PATH, request->path);
-			send_file(client_fd, path_to_file, HTTP_OK);
+			http_request_is_GET(&request) &&
+			!has_illegal_path(&request))
+		{	
+			send_files(server, client_fd, request->path, HTTP_OK);
 		}
 		else
-			send_404_response(client_fd);
+			send_404_response(server, client_fd);
 	}
 	close(client_fd);
 }
 
-static void make_path_to_web_file(WebServer *server, HttpRequest *request, char *dest)
+static int has_illegal_path(HttpRequest *request)
 {
-	if (strcmp(request->path, "/"))
-		strcpy(dest, server->DEFAULT_WEB_PATH);
-	else
-	{
-		strcpy(dest, server->WEB_ROOT_PATH);
-		strcat(dest, request->path);
-	}		
+	// Se pueden añadir mas expresiones que sepamos que dan accesos
+	// no autorizados...
+	return strstr(request->path, "..");
 }
 
-static void send_file(WebServer *server, int client_fd, char *path, int status_code) {
-	FILE *file = NULL; 
-	long file_size = 0;
+static void send_404_response(WebServer *server, int client_fd) {
+	send_files(server, client_fd, "/404.html", HTTP_NOTFOUND);
+}
+
+static void send_files(WebServer* server, int client_fd, char *request_path, int status_code) {
+	char local_path[MAX_PATH_LENGTH + 5]; 
+	char cache_key[MAX_PATH_LENGTH];
 	char header_buffer[512];
-
-	file = fopen(path, "rb");
-
-	if (file == NULL) {
-		// Si falla el puntero de lectura file no podremos
-		// renderizar un HTML "bonito" y en su lugar tendremos
-		// que mostrar un HTML estático a modo de fallback
-		if(status_code == 404) {
-			send_static_404_response(client_fd);
-		}
-		else {
-			send_404_response(client_fd);
-		}
+	
+	char *web_root = server->WEB_ROOT_PATH;
+	
+	if (strcmp(request_path, "/") == 0) {
+		snprintf(local_path, sizeof(local_path), "%s/index.html", web_root);
+		snprintf(cache_key, sizeof(cache_key), "/index.html");
+	}
+	else {
+		snprintf(local_path, sizeof(local_path), "%s%s", web_root, request_path);
+		snprintf(cache_key, sizeof(cache_key), "%s", request_path);
 	}
 
+	const char *mime_type = get_mime_type(local_path);
+	const char *status_message = (status_code == HTTP_OK) ? "200 OK" : "404 Not Found";
+
+	size_t file_size;
+	char *response_data = NULL;
+	int from_cache = 0;   // 0 = MISS, 1 = HIT
+
+	pthread_mutex_lock(&cache_mutex);
+	CacheEntry *entry = find_in_cache(cache, cache_key);
+
+	if (entry && is_cache_valid(entry, local_path)) {
+    	entry->last_access = time(NULL);
+        file_size = entry->size;
+        response_data = entry->data;
+		from_cache = 1;
+		
+        pthread_mutex_unlock(&cache_mutex);
+	}
 	else {
-		fseek(file, 0, SEEK_END);
-		file_size = ftell(file);
-		fseek(file, 0, SEEK_SET);
+		pthread_mutex_unlock(&cache_mutex);
 
-		// Lidiamos con la petición que espera recibir 
-		// el navegador 
-		const char *mime_type = get_mime_type(path);
+		time_t mtime;
+		char *data = load_file(local_path, &file_size, &mtime);
 
-		const char *status_message = (status_code == 200) ? "200 OK" : "404 Not Found";
-
-		int header_len = snprintf(header_buffer, sizeof(header_buffer), 
-			"HTTP/1.0 %s\r\n"
-			"Content-Type: %s\r\n"
-			"Content-Length: %ld\r\n"
-			"Connection: close\r\n"
-			"\r\n",
-			status_message, mime_type, file_size);
-
-		// Envío de cabeceras al cliente
-		write(client_fd, header_buffer, header_len);
-
-		// Enviar contenido del archivo 
-		char file_buffer[1024];
-		int bytes_read;
-
-		while((bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file)) > 0) {
-			if (write(client_fd, file_buffer, bytes_read) < 0) {
-				perror("Error al enviar contenido del archivo");
-				break;
+		if (!data) {
+			// Si falla el puntero de lectura file no podremos
+			// renderizar un HTML "bonito" y en su lugar tendremos
+			// que mostrar un HTML estático a modo de fallback
+			if (status_code == HTTP_NOTFOUND) {
+				send_static_404_response(server, client_fd);
+			} else {
+				send_404_response(server, client_fd);
 			}
+			return;
 		}
-		fclose(file);
+		pthread_mutex_lock(&cache_mutex);
+		store_in_cache(cache, cache_key, local_path, data, file_size, mtime);
+		pthread_mutex_unlock(&cache_mutex);
+
+		response_data = data;
+	}
+
+	int header_len = snprintf(header_buffer, sizeof(header_buffer), 
+		"HTTP/1.0 %s\r\n"
+		"Content-Type: %s\r\n"
+		"Content-Length: %ld\r\n"
+		"Connection: close\r\n"
+		"\r\n",
+		status_message, mime_type, file_size);
+	
+	printf("[CACHE] %s: %s (size=%zu)\n",
+       from_cache ? "HIT" : "MISS", cache_key, file_size);
+	
+	// Envío de cabeceras al cliente
+	write(client_fd, header_buffer, header_len);
+
+	size_t offset = 0;
+	while (offset < file_size){
+		size_t chunk = (file_size - offset >= 1024) ? 1024 : file_size - offset;
+		if (write(client_fd, response_data + offset, chunk) < 0) {
+			perror("Error al enviar contenido del archivo");
+		}
+	offset += chunk;
 	}
 }
 
-static void send_static_404_response(int client_fd) {
+static void send_static_404_response(WebServer *server, int client_fd) {
 	const char *html_body = 
         "<html><body>"
         "<h1>404 Not Found</h1>"
@@ -226,19 +282,15 @@ static void send_static_404_response(int client_fd) {
     char http_response[BUFFER_SIZE];
     
     int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n"
+        "HTTP/1.0 404 Not Found\r\n" 
         "Content-Type: text/html\r\n"
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
-        "\r\n"
+        "\r\n" 
         "%s",
         body_len, html_body);
     
     write(client_fd, http_response, response_len); 
-}
-
-static void send_404_response(int client_fd) {
-	send_files(client_fd, "/404.html", HTTP_NOTFOUND);
 }
 
 void close_server(WebServer *server)

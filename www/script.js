@@ -20,7 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "common",
             timeMinutes: 120,
             description: "Paquet d'estudi garantit per superar SIOP sense perdre el cap.",
+<<<<<<< HEAD
             img: "images/Aprovat en SIOP.png"
+=======
+            img: "images/AprovatenSIOP.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 2,
@@ -28,14 +32,22 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "mythic",
             timeMinutes: 330,
             description: "Benvingut al panteó dels alumnes llegendaris.",
+<<<<<<< HEAD
             img: "images/Matrícula d'honor en SIOP.png"
+=======
+            img: "images/MatriculadhonorenSIOP.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 3,
             name: "Bolígraf Arcà",
             rarity: "common",
             timeMinutes: 100 * 60,
+<<<<<<< HEAD
             description: "Escriu rúniques infinites sense quedar-se sense tinta.",
+=======
+            description: "Què millor que un bolígraf molt car que et faci perdre el temps?",
+>>>>>>> origin/hola_amiguita
             img: "images/boligraf.png"
         },
         {
@@ -43,14 +55,20 @@ document.addEventListener("DOMContentLoaded", () => {
             name: "Apple MacTime M3",
             rarity: "rare",
             timeMinutes: 3000,
+<<<<<<< HEAD
             description: "Portàtil forjat al pla de Cupertino Prime.",
             img: "images/Apple MacTime M3.png"
+=======
+            description: "Portàtil forjat al pla de Cupertino Prime ideal per les entregues de SIOP.",
+            img: "images/AppleMacTimeM3.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 5,
             name: "Glock 18",
             rarity: "rare",
             timeMinutes: 4800,
+<<<<<<< HEAD
             description: "Replica de pràctica per a duels temporals controlats.",
             img: "images/Glock 18.png"
         },
@@ -61,6 +79,18 @@ document.addEventListener("DOMContentLoaded", () => {
             timeMinutes: 45,
             description: "Manté l'ixir de cafè calent durant jornades eternes.",
             img: "images/Ampolla d'aigua d'acer inoxidable.png"
+=======
+            description: "Recent contrabandejada del sector del 20.",
+            img: "images/Glock18.png"
+        },
+        {
+            id: 6,
+            name: "Ampolla d'acer oxidable",
+            rarity: "uncommon",
+            timeMinutes: 45,
+            description: "Per portar el que vulguis. No et jutjarem.",
+            img: "images/Ampolladaiguadacerinoxidable.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 7,
@@ -68,54 +98,87 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "mythic",
             timeMinutes: 7200,
             description: "Peça de col·lecció per a mercenaris del temps.",
+<<<<<<< HEAD
             img: "images/Francotirador Barret M82.png"
+=======
+            img: "images/FrancotiradorBarretM82.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 8,
             name: "Yamaha WaveRunner VX23",
             rarity: "mythic",
             timeMinutes: 12000,
+<<<<<<< HEAD
             description: "Moto aquàtica infusa amb essència planar.",
             img: "images/Yamaha WaveRunner VX23.png"
+=======
+            description: "Fugeix d'un robatori de temps amb estil.",
+            img: "images/YamahaWaveRunnerVX23.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 9,
             name: "Glock 20",
             rarity: "rare",
             timeMinutes: 5400,
+<<<<<<< HEAD
             description: "Equilibri perfecte entre control i potència rúnica.",
             img: "images/Glock 20.png"
+=======
+            description: "9 de cada 10 Time Thiefs la recomanen. No sabem què li va passar al desè.",
+            img: "images/Glock20.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 10,
             name: "Suspés remot en SIOP",
             rarity: "uncommon",
             timeMinutes: 180,
+<<<<<<< HEAD
             description: "Servei de suspensió estratègica per guanyar temps extra.",
             img: "images/Suspés remot en SIOP.png"
+=======
+            description: "Perfecte per quan tenir competència no et convé.",
+            img: "images/SuspesremotenSIOP.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 11,
             name: "Pastilles de cafeïna",
             rarity: "common",
             timeMinutes: 30,
+<<<<<<< HEAD
             description: "Efecte instantani per no adormir-te en cap ritual.",
             img: "images/Pastilles de cafeïna.png"
+=======
+            description: "Efecte instantani per no perdre el temps.",
+            img: "images/Pastillesdecafeina.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 12,
             name: "Rellotge bàsic",
             rarity: "common",
             timeMinutes: 15,
+<<<<<<< HEAD
             description: "Controla cada segon sacrificat en els teus intercanvis.",
             img: "images/Rellotge bàsic.png"
+=======
+            description: "Ideal per veure el temps passar.",
+            img: "images/Rellotgebasic.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 13,
             name: "Drac del Vòrtex",
             rarity: "mythic",
             timeMinutes: 9600,
+<<<<<<< HEAD
             description: "Mascota dracònica que vigila el teu inventari dimensional.",
+=======
+            description: "Visita al veterinari no inclosa.",
+>>>>>>> origin/hola_amiguita
             img: "images/dragon.png"
         },
         {
@@ -124,14 +187,22 @@ document.addEventListener("DOMContentLoaded", () => {
             rarity: "uncommon",
             timeMinutes: 75,
             description: "Elixir rosat que enamora fins i tot els guardians del temps.",
+<<<<<<< HEAD
             img: "images/poscima del amor.png"
+=======
+            img: "images/poscimadelamor.png"
+>>>>>>> origin/hola_amiguita
         },
         {
             id: 15,
             name: "Orbe Gemini QH9",
             rarity: "rare",
             timeMinutes: 420,
+<<<<<<< HEAD
             description: "Artefacte generatiu que duplica qualsevol relíquia una vegada al dia.",
+=======
+            description: "Ho sap tot. Abans li deiem intel·ligència artificial.",
+>>>>>>> origin/hola_amiguita
             img: "images/Gemini_Generated_Image_qh9c21qh9c21qh9c.png"
         }
     ];

@@ -20,7 +20,6 @@ IPv4Endpoint make_ipv4_endpoint(char* ip, int port)
     else 
         endpoint.sin_addr.s_addr = inet_addr(ip);
 
-
     endpoint.sin_port = htons(port);
     return endpoint;
 }

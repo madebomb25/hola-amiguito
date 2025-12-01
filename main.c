@@ -1,5 +1,6 @@
 #include "webserverlib.h"
 #include <stdio.h>
+#include <signal.h>
 
 int end_process = 0;
 
@@ -12,8 +13,7 @@ int main() {
     int port = 8081;
     
     printf("Iniciando servidor web en http://127.0.0.1:%d/\n", port);
-    
-    WebServer *server = start_webserver(port); 
+    WebServer *server = start_webserver("./www", "./www/index.html", port); 
 	
 	signal(SIGINT, ras_sigint);
 	
