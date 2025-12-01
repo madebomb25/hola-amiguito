@@ -210,7 +210,7 @@ void send_files(int client_fd, char *path, int status_code) {
     	entry->last_access = time(NULL);
         file_size = entry->size;
         response_data = entry->data;
-		from_cache = 1;   // ✅ HIT
+		from_cache = 1;   
         pthread_mutex_unlock(&cache_mutex);
 	}
 	else{

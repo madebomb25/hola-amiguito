@@ -12,15 +12,15 @@
 
 typedef struct
 {
-    char path[MAX_PATH_LENGTH];   // Ruta tipo "/index.html"
+    char path[MAX_PATH_LENGTH];   
     char *data;                // Contenido cargado en memoria
-    size_t size;               // Tamaño del contenido
+    size_t size;               
     time_t mtime;              // Última modificación del archivo en disco
     int in_use;                // 0 = libre, 1 = usada
-    time_t last_access;        // Timestamp para LRU
+    time_t last_access;        
 } CacheEntry;
 
-/* FUNCIONES DEL CACHE */
+
 
 void init_cache(CacheEntry *cache);
 
@@ -35,4 +35,4 @@ CacheEntry* get_free_or_lru_entry(CacheEntry *cache);
 void store_in_cache(CacheEntry *cache, const char *path, const char *filepath,
                     char *data, size_t size, time_t mtime);
 
-#endif // CACHE_H
+#endif 
