@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include "webserverlib.h"
 #include "socket_utils.h"
+#include "http_utils.h"
 
 #define MAX_CLIENTS_IN_QUEUE 5
 #define ERR_OPEN_SOCKET -1
@@ -22,10 +23,24 @@
 static void end_process_with_error(int error_code);
 static int bind_socket_to_endpoint(int socket_fd, IPv4Endpoint *endpoint);
 static int start_listening(int socket_fd);
+static void handle_request(WebServer *server, int client_fd);
+static void make_path_to_web_file(WebServer *server, HttpRequest *request, char *dest);
+static void send_file(WebServer *server, int client_fd, char *path, int status_code);
+static void send_static_404_response(int client_fd);
+static void send_404_response(int client_fd);
 static const char *get_mime_type(const char *path);
-static void handle_request(int client_fd);
 
-WebServer *start_webserver(int port)
+typedef struct 
+{
+	int socket_fd;
+	IPv4Endpoint endpoint;
+	char *WEB_ROOT_PATH;
+	char *DEFAULT_WEB_PATH;
+	int max_clients;
+	
+} WebServer;
+
+WebServer *start_webserver(char* WEB_ROOT_PATH, char* DEFAULT_WEB_PATH, int port)
 {	
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_fd < 0) 
@@ -49,9 +64,10 @@ WebServer *start_webserver(int port)
 	server->endpoint = endpoint;
 	server->socket_fd = socket_fd;
 	server->max_clients = MAX_CLIENTS_IN_QUEUE;
+	server->WEB_ROOT_PATH = WEB_ROOT_PATH;
+	server->DEFAULT_WEB_PATH = DEFAULT_WEB_PATH;
 
 	printf("Servidor inicializado.\n");
-	
     return server;
 }
 
@@ -81,34 +97,32 @@ static int start_listening(int socket_fd)
     return listen(socket_fd, MAX_CLIENTS_IN_QUEUE) == 0;
 }
 
-void send_static_404_response(int client_fd) {
-	const char *html_body = 
-        "<html><body>"
-        "<h1>404 Not Found</h1>"
-        "<p>El recurso solicitado no existe en este servidor.</p>"
-        "</body></html>\r\n";
-        
-    size_t body_len = strlen(html_body); 
+void accept_requests(WebServer *server) 
+{
+	int server_fd = server->socket_fd;
 
-    char http_response[BUFFER_SIZE];
-    
-    int response_len = snprintf(http_response, BUFFER_SIZE,
-        "HTTP/1.0 404 Not Found\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: %zu\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-        "%s",
-        body_len, html_body);
-    
-    write(client_fd, http_response, response_len); 
+	while(server)
+	{
+		IPv4Endpoint client_addr;
+		socklen_t client_addr_len = sizeof(client_addr);
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+
+		if (client_fd >= 0)
+			handle_request(server, client_fd);
+		else
+		{
+			/*Esto se podría implementar mediante end_process_with_error 
+			pero en caso de que una petición falle no queremos abortar la ejecución
+			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
+			perror("ERR: No se ha podido aceptar una petición.");
+		}
+	}
 }
 
 static void handle_request(WebServer *server, int client_fd) {
 	char request_buffer[BUFFER_SIZE]; 
-
 	int bytes_received = read(client_fd, request_buffer, BUFFER_SIZE - 1);
-	char *method;
+	
 	if (bytes_received < 0)
 		perror("ERR: No se ha podido manejar una petición HTTP.\n");
 
@@ -117,46 +131,40 @@ static void handle_request(WebServer *server, int client_fd) {
 
 	else {
 		request_buffer[bytes_received] = '\0';
-		// Trucamos la primera línea de la petición
-		
 		HttpRequest request;
-		parse_http_request(&request_line, &request);
-		char *path;
-		if (request_line == NULL) {
+		parse_http_request(request_buffer, &request);
+		
+		if (http_request_has_valid_structure(request) && 
+			http_request_is_GET(request)) &&
+			strstr(request->path, "..")
+		{
+			char path_to_file[MAX_PATH_LENGTH + 5];
+			make_path_to_web_file(path_to_file, server->WEB_ROOT_PATH, request->path);
+			send_file(client_fd, path_to_file, HTTP_OK);
+		}
+		else
 			send_404_response(client_fd);
-		}
-
-		else {
-			method = strtok(request_line, " ");
-			path = strtok(NULL, " ");
-		}
-
-		if (method != NULL && path != NULL && strncmp(method, "GET", 3) == 0) {
-			send_files(client_fd, path, 200);
-		}
-		else {
-			send_404_response(client_fd);
-		}
 	}
 	close(client_fd);
 }
 
-void send_files(int client_fd, char *path, int status_code) {
-	char local_path[MAX_PATH_LENGTH + 5]; 
+static void make_path_to_web_file(WebServer *server, HttpRequest *request, char *dest)
+{
+	if (strcmp(request->path, "/"))
+		strcpy(dest, server->DEFAULT_WEB_PATH);
+	else
+	{
+		strcpy(dest, server->WEB_ROOT_PATH);
+		strcat(dest, request->path);
+	}		
+}
+
+static void send_file(WebServer *server, int client_fd, char *path, int status_code) {
 	FILE *file = NULL; 
 	long file_size = 0;
-	char header_buffer[512]; 
+	char header_buffer[512];
 
-	// Si la request envía '/' respondemos con index.html si no
-	// procesamos el path especificado por el navegador 
-	if (strcmp(path, "/") == 0) {
-		snprintf(local_path, sizeof(local_path), "%s/index.html", WEB_ROOT);
-	}
-	else {
-		snprintf(local_path, sizeof(local_path), "%s%s", WEB_ROOT, path);
-	}
-
-	file = fopen(local_path, "rb");
+	file = fopen(path, "rb");
 
 	if (file == NULL) {
 		// Si falla el puntero de lectura file no podremos
@@ -177,7 +185,7 @@ void send_files(int client_fd, char *path, int status_code) {
 
 		// Lidiamos con la petición que espera recibir 
 		// el navegador 
-		const char *mime_type = get_mime_type(local_path);
+		const char *mime_type = get_mime_type(path);
 
 		const char *status_message = (status_code == 200) ? "200 OK" : "404 Not Found";
 
@@ -206,36 +214,34 @@ void send_files(int client_fd, char *path, int status_code) {
 	}
 }
 
-void send_404_response(int client_fd) {
-	send_files(client_fd, "/404.html", 404);
+static void send_static_404_response(int client_fd) {
+	const char *html_body = 
+        "<html><body>"
+        "<h1>404 Not Found</h1>"
+        "<p>El recurso solicitado no existe en este servidor.</p>"
+        "</body></html>\r\n";
+        
+    size_t body_len = strlen(html_body); 
+
+    char http_response[BUFFER_SIZE];
+    
+    int response_len = snprintf(http_response, BUFFER_SIZE,
+        "HTTP/1.0 404 Not Found\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: %zu\r\n"
+        "Connection: close\r\n"
+        "\r\n"
+        "%s",
+        body_len, html_body);
+    
+    write(client_fd, http_response, response_len); 
 }
 
-void accept_requests(WebServer *server) 
-{
-	int server_fd = server->socket_fd;
-
-	while(server)
-	{
-		IPv4Endpoint client_addr;
-		socklen_t client_addr_len = sizeof(client_addr);
-
-		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-
-		if (client_fd >= 0)
-		{
-			handle_request(client_fd);
-		}
-		else
-		{
-			/*Esto se podría implementar mediante end_process_with_error 
-			pero en caso de que una petición falle no queremos abortar la ejecución
-			del servidor, si no que intente aceptar el resto de peticiones entrantes. */
-			perror("ERR: No se ha podido aceptar una petición.");
-		}
-	}
+static void send_404_response(int client_fd) {
+	send_files(client_fd, "/404.html", HTTP_NOTFOUND);
 }
 
-void end_server(WebServer *server)
+void close_server(WebServer *server)
 {
 	close(server->socket_fd);
 	free(server);

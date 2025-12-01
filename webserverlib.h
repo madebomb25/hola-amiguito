@@ -1,41 +1,23 @@
-#ifndef WEBSERVER_LIB_H
-#define WEBSERVER_LIB_H
+#ifndef WEBSERVERLIB_H
+#define WEBSERVERLIB_H
 
-#include "socket_utils.h" 
-#include <stddef.h> 
-#include <stdlib.h>
-#include <unistd.h>
+#include "socket_utils.h"
+#include "http_utils.h"
 
-
-#define MAX_CLIENTS_IN_QUEUE 5
-#define ERR_OPEN_SOCKET -1
-#define ERR_BIND_SOCKET -2
-#define ERR_LISTEN -3
-#define ERR_MEMORY -4
-
-#define BUFFER_SIZE 4096
+#define HTTP_OK 200
+#define HTTP_NOTFOUND 404
 #define MAX_PATH_LENGTH 1024
-#define WEB_ROOT "www"
+#define BUFFER_SIZE 4096
 
+typedef struct WebServer WebServer;
+typedef struct HttpRequest HttpRequest;
 
-typedef struct 
-{
-    int socket_fd;
-    IPv4Endpoint endpoint;
-    int max_clients;
-} WebServer;
-
-
-WebServer *start_webserver(int port);
-
+WebServer *start_webserver(char *WEB_ROOT_PATH, char *DEFAULT_WEB_PATH, int port);
 void accept_requests(WebServer *server);
+void close_server(WebServer *server);
 
-void send_files(int client_fd, char *path, int status_code);
+void parse_http_request(const char *raw_request, HttpRequest **request);
+int http_request_has_valid_structure(HttpRequest *request);
+int http_request_is_GET(HttpRequest *request);
 
-void send_404_response(int client_fd);
-
-void send_static_404_response(int client_fd);
-
-void end_server(WebServer *server); 
-
-#endif 
+#endif
